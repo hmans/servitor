@@ -3,7 +3,11 @@
 
 	let { content }: { content: string } = $props();
 
-	const html = $derived(marked.parse(content, { async: false }) as string);
+	const renderer = new marked.Renderer();
+	renderer.link = ({ href, text }) =>
+		`<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+
+	const html = $derived(marked.parse(content, { async: false, renderer }) as string);
 </script>
 
 <div class="markdown text-sm leading-[1.8]">
