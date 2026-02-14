@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Commit } from '$lib/server/git';
+	import DiffViewer from './DiffViewer.svelte';
 
 	let { commits, diff }: { commits: Commit[]; diff: string } = $props();
 
@@ -52,14 +53,7 @@
 			{#if !diff}
 				<p class="text-sm text-zinc-600">No diff against base branch.</p>
 			{:else}
-				<pre
-					class="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3 font-mono text-xs leading-relaxed"
-				>{#each diff.split('\n') as line}{#if line.startsWith('+')}<span class="text-green-400">{line}</span>
-{:else if line.startsWith('-')}<span class="text-red-400">{line}</span>
-{:else if line.startsWith('@@')}<span class="text-cyan-400">{line}</span>
-{:else if line.startsWith('diff ')}<span class="text-yellow-400">{line}</span>
-{:else}{line}
-{/if}{/each}</pre>
+				<DiffViewer {diff} />
 			{/if}
 		{/if}
 	</div>
