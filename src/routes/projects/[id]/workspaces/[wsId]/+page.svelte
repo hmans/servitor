@@ -266,7 +266,7 @@
 </div>
 
 <!-- Resizer + Info pane -->
-<PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" />
+<PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" storageKey="pane:info" />
 <div class="hidden shrink-0 overflow-auto pl-3 lg:block" style:width="{infoPaneWidth}px">
 	<InfoPane commits={data.commits} diff={data.diff} gitStatus={data.gitStatus} />
 </div>

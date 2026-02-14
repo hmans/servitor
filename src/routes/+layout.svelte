@@ -16,7 +16,7 @@
 		<Sidebar projects={data.projects} />
 	</div>
 
-	<PaneResizer bind:width={sidebarWidth} min={180} max={480} side="left" />
+	<PaneResizer bind:width={sidebarWidth} min={180} max={480} side="left" storageKey="pane:sidebar" />
 
 	<main class="flex-1 overflow-auto p-6">
 		{@render children()}
