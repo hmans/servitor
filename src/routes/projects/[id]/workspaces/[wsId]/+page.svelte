@@ -4,9 +4,11 @@
 	import { onDestroy, tick } from 'svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
 	import InfoPane from '$lib/components/InfoPane.svelte';
+	import PaneResizer from '$lib/components/PaneResizer.svelte';
 
 	let { data } = $props();
 
+	let infoPaneWidth = $state(400);
 	let input = $state('');
 	let sendingConvId = $state<string | null>(null);
 	let errorMessage = $state('');
@@ -144,9 +146,9 @@
 	});
 </script>
 
-<div class="flex h-full gap-6">
+<div class="flex h-full">
 <!-- Chat column -->
-<div class="flex min-w-0 flex-1 flex-col">
+<div class="flex min-w-0 flex-1 flex-col pr-3">
 	<!-- Header -->
 	<div class="flex items-center justify-between border-b border-zinc-800 pb-4">
 		<div>
@@ -276,8 +278,9 @@
 	{/if}
 </div>
 
-<!-- Info pane -->
-<div class="hidden w-[400px] shrink-0 border-l border-zinc-800 pl-6 lg:block">
+<!-- Resizer + Info pane -->
+<PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" />
+<div class="hidden shrink-0 overflow-auto pl-3 lg:block" style:width="{infoPaneWidth}px">
 	<InfoPane commits={data.commits} diff={data.diff} />
 </div>
 </div>

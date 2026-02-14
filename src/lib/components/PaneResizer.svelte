@@ -1,0 +1,68 @@
+<script lang="ts">
+	let {
+		width = $bindable(),
+		min = 150,
+		max = 600,
+		side = 'left'
+	}: {
+		width: number;
+		min?: number;
+		max?: number;
+		side?: 'left' | 'right';
+	} = $props();
+
+	let dragging = $state(false);
+	let startX = 0;
+	let startWidth = 0;
+
+	function onpointerdown(e: PointerEvent) {
+		dragging = true;
+		startX = e.clientX;
+		startWidth = width;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		document.body.style.userSelect = 'none';
+		document.body.style.cursor = 'col-resize';
+	}
+
+	function onpointermove(e: PointerEvent) {
+		if (!dragging) return;
+		const delta = e.clientX - startX;
+		const raw = side === 'left' ? startWidth + delta : startWidth - delta;
+		width = Math.min(max, Math.max(min, raw));
+	}
+
+	function stopDrag() {
+		dragging = false;
+		document.body.style.userSelect = '';
+		document.body.style.cursor = '';
+	}
+
+	function onkeydown(e: KeyboardEvent) {
+		const step = e.shiftKey ? 50 : 10;
+		if (e.key === 'ArrowRight') {
+			width = Math.min(max, Math.max(min, width + (side === 'left' ? step : -step)));
+		} else if (e.key === 'ArrowLeft') {
+			width = Math.min(max, Math.max(min, width - (side === 'left' ? step : -step)));
+		}
+	}
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
+	role="separator"
+	tabindex="0"
+	aria-orientation="vertical"
+	class="group relative flex shrink-0 cursor-col-resize items-center justify-center px-[3px]"
+	{onpointerdown}
+	{onpointermove}
+	onpointerup={stopDrag}
+	onlostpointercapture={stopDrag}
+	{onkeydown}
+>
+	<div
+		class="h-full w-px transition-colors {dragging
+			? 'bg-blue-500'
+			: 'bg-zinc-800 group-hover:bg-zinc-600'}"
+	></div>
+</div>

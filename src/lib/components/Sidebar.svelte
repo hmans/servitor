@@ -26,7 +26,7 @@
 	}
 </script>
 
-<aside class="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
+<aside class="flex h-full w-full flex-col bg-zinc-900">
 	<div class="border-b border-zinc-800 p-4">
 		<a href="/" class="text-lg font-bold tracking-tight hover:text-white">Servitor</a>
 	</div>
