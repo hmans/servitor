@@ -162,30 +162,6 @@
 		</form>
 	</div>
 
-	<!-- Conversation tabs -->
-	<div class="flex items-center gap-1 border-b border-zinc-800 pt-3 pb-0">
-		{#each data.conversations as conv}
-			<a
-				href="?conv={conv.id}"
-				class="rounded-t-md px-3 py-2 text-sm transition-colors {conv.id ===
-				data.activeConversationId
-					? 'border-b-2 border-zinc-100 text-zinc-100'
-					: 'text-zinc-500 hover:text-zinc-300'}"
-			>
-				{conv.title}
-			</a>
-		{/each}
-		<form method="POST" action="?/new-conversation" use:enhance class="ml-1">
-			<button
-				type="submit"
-				class="rounded-md px-2 py-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-300"
-				title="New conversation"
-			>
-				+
-			</button>
-		</form>
-	</div>
-
 	{#if data.activeConversationId}
 		<!-- Messages -->
 		<div bind:this={messagesEl} class="flex-1 overflow-auto py-4">
