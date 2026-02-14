@@ -11,7 +11,14 @@ try {
 
 export class ClaudeCodeAdapter implements AgentAdapter {
 	start(config: AgentStartConfig): AgentProcess {
-		const args = ['-p', config.message, '--output-format', 'stream-json', '--verbose'];
+		const args = [
+			'-p',
+			config.message,
+			'--output-format',
+			'stream-json',
+			'--verbose',
+			'--dangerously-skip-permissions'
+		];
 
 		if (config.sessionId) {
 			args.push('--resume', config.sessionId);
