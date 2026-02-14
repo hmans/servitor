@@ -12,6 +12,7 @@
 	let infoPaneWidth = $state(400);
 	let input = $state('');
 	let sendingConvId = $state<string | null>(null);
+	let processAlive = $state(false);
 	let errorMessage = $state('');
 	let messagesEl: HTMLDivElement | undefined = $state();
 	let composerEl: HTMLTextAreaElement | undefined = $state();
@@ -54,20 +55,21 @@
 		// Reset per-conversation state when switching
 		streamingParts = [];
 		sendingConvId = null;
+		processAlive = false;
 
 		const es = new EventSource(`/api/conversations/${convId}/stream`);
 
 		es.addEventListener('connected', (e) => {
 			const event = JSON.parse(e.data);
 			console.log('[claude] connected', event);
-			if (event.processing) {
-				sendingConvId = convId;
-			}
+			processAlive = !!event.processing;
 		});
 
 		es.addEventListener('text_delta', (e) => {
 			const event = JSON.parse(e.data);
 			console.log('[claude] text_delta', event);
+			processAlive = true;
+			sendingConvId = null;
 			streamingParts = [...streamingParts, { type: 'text', text: event.text }];
 			scrollToBottom();
 		});
@@ -75,6 +77,8 @@
 		es.addEventListener('tool_use_start', (e) => {
 			const event = JSON.parse(e.data);
 			console.log('[claude] tool_use_start', event);
+			processAlive = true;
+			sendingConvId = null;
 			streamingParts = [
 				...streamingParts,
 				{ type: 'tool_use', tool: event.tool, input: event.input ?? '', toolUseId: event.toolUseId }
@@ -85,6 +89,7 @@
 		es.addEventListener('done', async () => {
 			console.log('[claude] done');
 			sendingConvId = null;
+			processAlive = false;
 			streamingParts = [];
 			await invalidateAll();
 			scrollToBottom();
@@ -100,6 +105,7 @@
 				console.log('[claude] connection error', e);
 			}
 			sendingConvId = null;
+			processAlive = false;
 			streamingParts = [];
 		});
 
@@ -184,7 +190,7 @@
 					<p class="text-sm text-zinc-600">Type a message to begin.</p>
 				</div>
 			{:else}
-				<div class="space-y-6 leading-relaxed">
+				<div class="space-y-6 leading-[1.8]">
 					{#each localMessages as msg (msg.id)}
 						<div class="group">
 							{#if msg.role === 'user'}
@@ -215,10 +221,17 @@
 									</div>
 								{/if}
 							{/each}
+							<div class="pl-3">
+								<BrailleSpinner />
+							</div>
 						</div>
 					{:else if sendingConvId === data.activeConversationId}
-						<div class="flex items-center gap-1 pl-3 text-sm text-zinc-600">
+						<div class="pl-3">
 							<BrailleSpinner />
+						</div>
+					{:else if processAlive}
+						<div class="pl-3 text-xs text-zinc-600">
+							session active
 						</div>
 					{/if}
 				</div>

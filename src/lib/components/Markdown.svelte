@@ -6,6 +6,6 @@
 	const html = $derived(marked.parse(content, { async: false }) as string);
 </script>
 
-<div class="markdown text-sm">
+<div class="markdown text-sm leading-[1.8]">
 	{@html html}
 </div>
