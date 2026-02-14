@@ -2,7 +2,8 @@ import { db } from '$lib/server/db';
 import { project, workspace } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { fail, redirect, error } from '@sveltejs/kit';
-import { createWorktree } from '$lib/server/git';
+import { createWorktree, slugify } from '$lib/server/git';
+import { config } from '$lib/server/config';
 
 export async function load({ params }) {
 	const proj = db.select().from(project).where(eq(project.id, params.id)).get();
@@ -31,7 +32,12 @@ export const actions = {
 		let worktreePath: string;
 
 		try {
-			({ branch, worktreePath } = createWorktree(proj.repoPath, name));
+			({ branch, worktreePath } = createWorktree(
+				proj.repoPath,
+				config.worktreesDir,
+				slugify(proj.name),
+				name
+			));
 		} catch (e) {
 			const message = e instanceof Error ? e.message : 'Failed to create worktree.';
 			return fail(400, { error: message, name });

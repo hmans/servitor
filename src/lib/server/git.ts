@@ -1,18 +1,26 @@
 import { execSync } from 'child_process';
 import { join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 function run(cmd: string, cwd: string): string {
 	return execSync(cmd, { cwd, encoding: 'utf-8' }).trim();
 }
 
-export function createWorktree(repoPath: string, name: string): { branch: string; worktreePath: string } {
+export function createWorktree(
+	repoPath: string,
+	worktreesDir: string,
+	projectSlug: string,
+	name: string
+): { branch: string; worktreePath: string } {
 	const branch = `servitor/${name}`;
-	const worktreePath = join(repoPath, '.worktrees', name);
+	const worktreePath = join(worktreesDir, projectSlug, name);
 
 	if (existsSync(worktreePath)) {
 		throw new Error(`Worktree path already exists: ${worktreePath}`);
 	}
+
+	// Ensure parent directory exists
+	mkdirSync(join(worktreesDir, projectSlug), { recursive: true });
 
 	// Create branch from current HEAD and set up worktree
 	run(`git worktree add -b "${branch}" "${worktreePath}"`, repoPath);
@@ -40,4 +48,12 @@ export function getDefaultBranch(repoPath: string): string {
 	} catch {
 		return 'main';
 	}
+}
+
+/** Derive a filesystem-safe slug from a project name */
+export function slugify(name: string): string {
+	return name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
 }
