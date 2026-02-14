@@ -1,9 +1,17 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import Sidebar from '$lib/components/Sidebar.svelte';
 
-	let { children } = $props();
+	let { data, children } = $props();
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+
+<div class="flex h-screen bg-zinc-950 text-zinc-100">
+	<Sidebar projects={data.projects} />
+
+	<main class="flex-1 overflow-auto p-6">
+		{@render children()}
+	</main>
+</div>
