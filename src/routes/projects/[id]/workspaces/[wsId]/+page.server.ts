@@ -25,6 +25,7 @@ export async function load({ params, url }) {
 		id: string;
 		role: string;
 		content: string;
+		toolInvocations: string | null;
 		createdAt: Date;
 	}> = [];
 

@@ -25,7 +25,7 @@
 	> = $state([]);
 
 	// Local copy of messages for optimistic updates
-	let localMessages: Array<{ id: string; role: string; content: string; createdAt: Date }> =
+	let localMessages: Array<{ id: string; role: string; content: string; toolInvocations: string | null; createdAt: Date }> =
 		$state([]);
 
 	// Sync from server data when it changes
@@ -127,7 +127,7 @@
 
 		localMessages = [
 			...localMessages,
-			{ id: `_optimistic_${Date.now()}`, role: 'user', content, createdAt: new Date() }
+			{ id: `_optimistic_${Date.now()}`, role: 'user', content, toolInvocations: null, createdAt: new Date() }
 		];
 		scrollToBottom();
 
@@ -168,6 +168,11 @@
 			<a href="/projects/{data.project.id}" class="text-zinc-500 hover:text-zinc-300">{data.project.name}</a>
 			<span class="text-zinc-700">/</span>
 			<span class="text-zinc-200">{data.workspace.name}</span>
+			{#if processAlive || sendingConvId}
+				<span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+			{:else}
+				<span class="inline-block h-2 w-2 rounded-full bg-zinc-700"></span>
+			{/if}
 		</div>
 		<form method="POST" action="?/delete" use:enhance>
 			<button
@@ -196,6 +201,20 @@
 							{#if msg.role === 'user'}
 								<div class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white">{msg.content}</div>
 							{:else}
+								{#if msg.toolInvocations}
+									{@const tools = JSON.parse(msg.toolInvocations) as Array<{ tool: string; toolUseId: string; input: string }>}
+									<div class="space-y-1 py-1">
+										{#each tools as t (t.toolUseId)}
+											<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
+												<span class="text-amber-600">[tool]</span>
+												<span class="text-zinc-500">{t.tool}</span>
+												{#if t.input}
+													<span class="truncate text-zinc-700">{t.input}</span>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								{/if}
 								<div class="text-sm text-zinc-100">
 									<Markdown content={msg.content} />
 								</div>
@@ -228,10 +247,6 @@
 					{:else if sendingConvId === data.activeConversationId}
 						<div class="pl-3">
 							<BrailleSpinner />
-						</div>
-					{:else if processAlive}
-						<div class="pl-3 text-xs text-zinc-600">
-							session active
 						</div>
 					{/if}
 				</div>

@@ -28,11 +28,16 @@ export async function POST({ params, request }) {
 		content,
 		agentType: conv.agentType,
 		cwd: ws.worktreePath,
-		onComplete: (text, sessionId) => {
+		onComplete: (text, sessionId, toolInvocations) => {
 			// Persist assistant message
 			if (text) {
 				db.insert(message)
-					.values({ conversationId: params.id, role: 'assistant', content: text })
+					.values({
+						conversationId: params.id,
+						role: 'assistant',
+						content: text,
+						toolInvocations: toolInvocations.length > 0 ? JSON.stringify(toolInvocations) : null
+					})
 					.run();
 			}
 

@@ -7,13 +7,21 @@ export type ConversationEvent =
 
 type Listener = (event: ConversationEvent) => void;
 
+export interface ToolInvocation {
+	tool: string;
+	toolUseId: string;
+	input: string;
+}
+
 interface ActiveConversation {
 	process: AgentProcess | null;
 	listeners: Set<Listener>;
 	agentType: string;
 	cwd: string;
+	/** Tool calls accumulated during the current turn */
+	toolInvocations: ToolInvocation[];
 	/** Callback for each completed turn — persists assistant message + session ID */
-	onComplete: ((text: string, sessionId: string) => void) | null;
+	onComplete: ((text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void) | null;
 }
 
 const adapters: Record<string, AgentAdapter> = {
@@ -25,7 +33,7 @@ const active = new Map<string, ActiveConversation>();
 function getOrCreate(conversationId: string): ActiveConversation {
 	let conv = active.get(conversationId);
 	if (!conv) {
-		conv = { process: null, listeners: new Set(), agentType: '', cwd: '', onComplete: null };
+		conv = { process: null, listeners: new Set(), agentType: '', cwd: '', toolInvocations: [], onComplete: null };
 		active.set(conversationId, conv);
 	}
 	return conv;
@@ -50,7 +58,7 @@ export function sendMessage(
 		content: string;
 		agentType: string;
 		cwd: string;
-		onComplete: (text: string, sessionId: string) => void;
+		onComplete: (text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void;
 	}
 ): void {
 	const conv = getOrCreate(conversationId);
@@ -59,6 +67,9 @@ export function sendMessage(
 	for (const fn of conv.listeners) {
 		fn({ type: 'user_message', messageId: opts.messageId, content: opts.content });
 	}
+
+	// Reset tool invocations for this new turn
+	conv.toolInvocations = [];
 
 	// Update the onComplete callback (the messages endpoint passes a fresh one each time
 	// that closes over the correct conversation row)
@@ -90,8 +101,17 @@ export function sendMessage(
 			fn(event);
 		}
 
+		if (event.type === 'tool_use_start') {
+			conv.toolInvocations.push({
+				tool: event.tool,
+				toolUseId: event.toolUseId,
+				input: event.input
+			});
+		}
+
 		if (event.type === 'message_complete' && conv.onComplete) {
-			conv.onComplete(event.text, event.sessionId);
+			conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
+			conv.toolInvocations = [];
 		}
 
 		if (event.type === 'done') {

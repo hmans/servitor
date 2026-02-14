@@ -62,6 +62,8 @@ export const message = sqliteTable('message', {
 		.references(() => conversation.id, { onDelete: 'cascade' }),
 	role: text('role', { enum: ['user', 'assistant', 'system', 'tool'] }).notNull(),
 	content: text('content').notNull(),
+	/** JSON array of { tool, toolUseId, input } for tool calls made during this assistant turn */
+	toolInvocations: text('tool_invocations'),
 	createdAt: integer('created_at', { mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date())
