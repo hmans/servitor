@@ -10,6 +10,7 @@
 	let sendingConvId = $state<string | null>(null);
 	let errorMessage = $state('');
 	let messagesEl: HTMLDivElement | undefined = $state();
+	let composerEl: HTMLTextAreaElement | undefined = $state();
 	let eventSource: EventSource | null = null;
 
 	// Streaming state — built up as SSE events arrive
@@ -25,6 +26,8 @@
 	// Sync from server data when it changes
 	$effect(() => {
 		localMessages = [...data.messages];
+		scrollToBottom();
+		tick().then(() => composerEl?.focus());
 	});
 
 	function scrollToBottom() {
@@ -240,6 +243,7 @@
 		<div class="border-t border-zinc-800 pt-4">
 			<div class="flex gap-3">
 				<textarea
+					bind:this={composerEl}
 					bind:value={input}
 					onkeydown={handleKeydown}
 					placeholder="Send a message..."
