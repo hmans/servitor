@@ -1,15 +1,37 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+
 	let {
 		width = $bindable(),
 		min = 150,
 		max = 600,
-		side = 'left'
+		side = 'left',
+		storageKey
 	}: {
 		width: number;
 		min?: number;
 		max?: number;
 		side?: 'left' | 'right';
+		storageKey?: string;
 	} = $props();
+
+	// Restore from localStorage on mount
+	if (browser && storageKey) {
+		const stored = localStorage.getItem(storageKey);
+		if (stored != null) {
+			const parsed = Number(stored);
+			if (!Number.isNaN(parsed)) {
+				width = Math.min(max, Math.max(min, parsed));
+			}
+		}
+	}
+
+	// Persist to localStorage on change
+	$effect(() => {
+		if (browser && storageKey) {
+			localStorage.setItem(storageKey, String(width));
+		}
+	});
 
 	let dragging = $state(false);
 	let startX = 0;
