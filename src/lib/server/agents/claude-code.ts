@@ -13,16 +13,13 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 	start(config: AgentStartConfig): AgentProcess {
 		const args = [
 			'-p',
-			config.message,
+			'--input-format',
+			'stream-json',
 			'--output-format',
 			'stream-json',
 			'--verbose',
 			'--dangerously-skip-permissions'
 		];
-
-		if (config.sessionId) {
-			args.push('--resume', config.sessionId);
-		}
 
 		// Strip CLAUDECODE env var to allow nested sessions
 		const env = { ...process.env };
@@ -33,9 +30,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 			stdio: ['pipe', 'pipe', 'pipe'],
 			env
 		});
-
-		// Close stdin immediately — claude -p doesn't read from it
-		proc.stdin.end();
 
 		const listeners: Array<(event: AgentEvent) => void> = [];
 		let sessionId = '';
@@ -100,10 +94,18 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		});
 
 		return {
+			send(message: string) {
+				const payload = JSON.stringify({
+					type: 'user',
+					message: { role: 'user', content: message }
+				});
+				proc.stdin.write(payload + '\n');
+			},
 			onEvent(callback: (event: AgentEvent) => void) {
 				listeners.push(callback);
 			},
 			kill() {
+				proc.stdin.end();
 				proc.kill('SIGTERM');
 			}
 		};

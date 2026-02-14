@@ -28,7 +28,6 @@ export async function POST({ params, request }) {
 		content,
 		agentType: conv.agentType,
 		cwd: ws.worktreePath,
-		sessionId: conv.agentSessionId ?? undefined,
 		onComplete: (text, sessionId) => {
 			// Persist assistant message
 			if (text) {

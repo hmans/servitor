@@ -1,7 +1,5 @@
 export interface AgentStartConfig {
-	message: string;
 	cwd: string;
-	sessionId?: string;
 }
 
 export type AgentEvent =
@@ -13,6 +11,8 @@ export type AgentEvent =
 	| { type: 'done'; sessionId: string };
 
 export interface AgentProcess {
+	/** Send a user message into the running process */
+	send(message: string): void;
 	onEvent(callback: (event: AgentEvent) => void): void;
 	kill(): void;
 }
