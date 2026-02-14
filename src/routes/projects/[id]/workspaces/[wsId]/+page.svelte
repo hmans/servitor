@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
+	import Markdown from '$lib/components/Markdown.svelte';
 
 	let { data } = $props();
 
@@ -187,7 +188,11 @@
 									? 'bg-zinc-700 text-zinc-100'
 									: 'bg-zinc-800/50 text-zinc-300'}"
 							>
+								{#if msg.role === 'user'}
 								<div class="whitespace-pre-wrap text-sm">{msg.content}</div>
+							{:else}
+								<Markdown content={msg.content} />
+							{/if}
 							</div>
 						</div>
 					{/each}
@@ -199,7 +204,7 @@
 								{#each streamingParts as part, i (i)}
 									{#if part.type === 'text'}
 										<div class="rounded-lg bg-zinc-800/50 px-4 py-3 text-zinc-300">
-											<div class="whitespace-pre-wrap text-sm">{part.text}</div>
+											<Markdown content={part.text} />
 										</div>
 									{:else if part.type === 'tool_use'}
 										<div
