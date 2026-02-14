@@ -5,6 +5,7 @@
 	import Markdown from '$lib/components/Markdown.svelte';
 	import InfoPane from '$lib/components/InfoPane.svelte';
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
+	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 
 	let { data } = $props();
 
@@ -98,6 +99,8 @@
 				// Native EventSource error
 				console.log('[claude] connection error', e);
 			}
+			sendingConvId = null;
+			streamingParts = [];
 		});
 
 		eventSource = es;
@@ -181,7 +184,7 @@
 					<p class="text-sm text-zinc-600">Type a message to begin.</p>
 				</div>
 			{:else}
-				<div class="space-y-4 leading-relaxed">
+				<div class="space-y-6 leading-relaxed">
 					{#each localMessages as msg (msg.id)}
 						<div class="group">
 							{#if msg.role === 'user'}
@@ -196,7 +199,7 @@
 
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
-						<div class="space-y-1">
+						<div class="space-y-3">
 							{#each streamingParts as part, i (i)}
 								{#if part.type === 'text'}
 									<div class="text-sm text-zinc-100">
@@ -215,7 +218,7 @@
 						</div>
 					{:else if sendingConvId === data.activeConversationId}
 						<div class="flex items-center gap-1 pl-3 text-sm text-zinc-600">
-							<span class="animate-pulse">...</span>
+							<BrailleSpinner />
 						</div>
 					{/if}
 				</div>
