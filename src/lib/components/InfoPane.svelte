@@ -2,8 +2,19 @@
 	import type { Commit, FileStatus } from '$lib/server/git';
 	import DiffViewer from './DiffViewer.svelte';
 
-	let { commits, diff, gitStatus }: { commits: Commit[]; diff: string; gitStatus: FileStatus[] } =
-		$props();
+	let {
+		commits,
+		committedDiff,
+		committedStatus,
+		uncommittedDiff,
+		uncommittedStatus
+	}: {
+		commits: Commit[];
+		committedDiff: string;
+		committedStatus: FileStatus[];
+		uncommittedDiff: string;
+		uncommittedStatus: FileStatus[];
+	} = $props();
 
 	let view: 'status' | 'commits' | 'diff' = $state('status');
 
@@ -22,7 +33,24 @@
 		untracked: '?',
 		renamed: 'R'
 	};
+
+	let totalStatusCount = $derived(committedStatus.length + uncommittedStatus.length);
 </script>
+
+{#snippet fileList(files: FileStatus[])}
+	<div class="space-y-0.5 font-mono text-xs">
+		{#each files as file}
+			<div class="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-zinc-800/50">
+				<span class="w-3 shrink-0 {statusColor[file.status]}">{statusLabel[file.status]}</span>
+				<span class="min-w-0 flex-1 truncate text-zinc-300" title={file.path}>{file.path}</span>
+				{#if file.additions > 0 || file.deletions > 0}
+					<span class="shrink-0 text-green-400">+{file.additions}</span>
+					<span class="shrink-0 text-red-400">-{file.deletions}</span>
+				{/if}
+			</div>
+		{/each}
+	</div>
+{/snippet}
 
 <div class="flex h-full flex-col">
 	<!-- Toggle buttons -->
@@ -33,7 +61,7 @@
 				? 'bg-zinc-700 text-zinc-100'
 				: 'text-zinc-400 hover:text-zinc-200'}"
 		>
-			Status{#if gitStatus.length > 0}<span class="ml-1 text-xs text-zinc-400">({gitStatus.length})</span>{/if}
+			Status{#if totalStatusCount > 0}<span class="ml-1 text-xs text-zinc-400">({totalStatusCount})</span>{/if}
 		</button>
 		<button
 			onclick={() => (view = 'commits')}
@@ -56,21 +84,21 @@
 	<!-- Content -->
 	<div class="flex-1 overflow-auto pt-3">
 		{#if view === 'status'}
-			{#if gitStatus.length === 0}
+			{#if totalStatusCount === 0}
 				<p class="text-sm text-zinc-600">Working tree clean.</p>
 			{:else}
-				<div class="space-y-0.5 font-mono text-xs">
-					{#each gitStatus as file}
-						<div class="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-zinc-800/50">
-							<span class="w-3 shrink-0 {statusColor[file.status]}">{statusLabel[file.status]}</span>
-							<span class="min-w-0 flex-1 truncate text-zinc-300" title={file.path}>{file.path}</span>
-							{#if file.additions > 0 || file.deletions > 0}
-								<span class="shrink-0 text-green-400">+{file.additions}</span>
-								<span class="shrink-0 text-red-400">-{file.deletions}</span>
-							{/if}
-						</div>
-					{/each}
-				</div>
+				{#if uncommittedStatus.length > 0}
+					<div class="mb-4">
+						<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Uncommitted</h3>
+						{@render fileList(uncommittedStatus)}
+					</div>
+				{/if}
+				{#if committedStatus.length > 0}
+					<div>
+						<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Committed</h3>
+						{@render fileList(committedStatus)}
+					</div>
+				{/if}
 			{/if}
 		{:else if view === 'commits'}
 			{#if commits.length === 0}
@@ -92,10 +120,21 @@
 				</div>
 			{/if}
 		{:else}
-			{#if !diff}
+			{#if !uncommittedDiff && !committedDiff}
 				<p class="text-sm text-zinc-600">No diff against base branch.</p>
 			{:else}
-				<DiffViewer {diff} />
+				{#if uncommittedDiff}
+					<div class="mb-4">
+						<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Uncommitted</h3>
+						<DiffViewer diff={uncommittedDiff} />
+					</div>
+				{/if}
+				{#if committedDiff}
+					<div>
+						<h3 class="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Committed</h3>
+						<DiffViewer diff={committedDiff} />
+					</div>
+				{/if}
 			{/if}
 		{/if}
 	</div>

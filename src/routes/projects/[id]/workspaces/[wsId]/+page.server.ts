@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { project, workspace, conversation, message } from '$lib/server/db/schema';
 import { eq, asc, sql } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
-import { removeWorktree, getDefaultBranch, getCommits, getDiff, getStatus } from '$lib/server/git';
+import { removeWorktree, getDefaultBranch, getCommits, getDiff, getUncommittedDiff, getStatus, getUncommittedStatus } from '$lib/server/git';
 
 export async function load({ params, url }) {
 	const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
@@ -39,8 +39,10 @@ export async function load({ params, url }) {
 
 	const baseBranch = getDefaultBranch(proj.repoPath);
 	const commits = getCommits(ws.worktreePath, baseBranch);
-	const diff = getDiff(ws.worktreePath, baseBranch);
-	const gitStatus = getStatus(ws.worktreePath, baseBranch);
+	const committedDiff = getDiff(ws.worktreePath, baseBranch);
+	const committedStatus = getStatus(ws.worktreePath, baseBranch);
+	const uncommittedDiff = getUncommittedDiff(ws.worktreePath);
+	const uncommittedStatus = getUncommittedStatus(ws.worktreePath);
 
 	return {
 		workspace: ws,
@@ -49,8 +51,10 @@ export async function load({ params, url }) {
 		activeConversationId: activeConvId,
 		messages,
 		commits,
-		diff,
-		gitStatus
+		committedDiff,
+		committedStatus,
+		uncommittedDiff,
+		uncommittedStatus
 	};
 }
 

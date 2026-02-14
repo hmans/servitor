@@ -212,7 +212,7 @@
 										<Markdown content={part.text} />
 									</div>
 								{:else if part.type === 'tool_use'}
-									<div class="flex items-center gap-2 pl-3 text-xs text-zinc-600">
+									<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
 										<span class="text-amber-600">[tool]</span>
 										<span class="text-zinc-500">{part.tool}</span>
 										{#if part.input}
@@ -284,6 +284,12 @@
 <!-- Resizer + Info pane -->
 <PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" storageKey="pane:info" />
 <div class="hidden shrink-0 overflow-auto pl-3 lg:block" style:width="{infoPaneWidth}px">
-	<InfoPane commits={data.commits} diff={data.diff} gitStatus={data.gitStatus} />
+	<InfoPane
+		commits={data.commits}
+		committedDiff={data.committedDiff}
+		committedStatus={data.committedStatus}
+		uncommittedDiff={data.uncommittedDiff}
+		uncommittedStatus={data.uncommittedStatus}
+	/>
 </div>
 </div>

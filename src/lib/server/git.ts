@@ -81,9 +81,19 @@ export function getCommits(worktreePath: string, baseBranch: string): Commit[] {
 	}
 }
 
+/** Committed changes: merge-base to HEAD */
 export function getDiff(worktreePath: string, baseBranch: string): string {
 	try {
 		return run(`git diff ${baseBranch}...HEAD`, worktreePath);
+	} catch {
+		return '';
+	}
+}
+
+/** Uncommitted changes: HEAD to working directory (staged + unstaged) */
+export function getUncommittedDiff(worktreePath: string): string {
+	try {
+		return run('git diff HEAD', worktreePath);
 	} catch {
 		return '';
 	}
@@ -96,46 +106,80 @@ export interface FileStatus {
 	deletions: number;
 }
 
+/** Parse --name-status and --numstat output from a git diff range into FileStatus[] */
+function parseDiffStatus(worktreePath: string, diffRange: string): FileStatus[] {
+	const nameStatus = run(`git diff --name-status ${diffRange}`, worktreePath);
+	if (!nameStatus) return [];
+
+	const numstatMap = new Map<string, { additions: number; deletions: number }>();
+	try {
+		const numstat = run(`git diff --numstat ${diffRange}`, worktreePath);
+		if (numstat) {
+			for (const line of numstat.split('\n')) {
+				const [add, del, ...rest] = line.split('\t');
+				const file = rest.join('\t');
+				numstatMap.set(file, {
+					additions: add === '-' ? 0 : parseInt(add),
+					deletions: del === '-' ? 0 : parseInt(del)
+				});
+			}
+		}
+	} catch {
+		// Line counts just won't be available
+	}
+
+	const files: FileStatus[] = [];
+	for (const line of nameStatus.split('\n')) {
+		const code = line[0];
+		const path = line.slice(1).trim();
+
+		let status: FileStatus['status'];
+		if (code === 'A') status = 'added';
+		else if (code === 'D') status = 'deleted';
+		else if (code === 'R') status = 'renamed';
+		else status = 'modified';
+
+		const stats = numstatMap.get(path) ?? { additions: 0, deletions: 0 };
+		files.push({ path, status, ...stats });
+	}
+
+	return files;
+}
+
+/** Committed changes: merge-base to HEAD */
 export function getStatus(worktreePath: string, baseBranch: string): FileStatus[] {
 	try {
-		// Compare current worktree state against the base branch
-		const nameStatus = run(`git diff --name-status ${baseBranch}`, worktreePath);
-		if (!nameStatus) return [];
+		return parseDiffStatus(worktreePath, `${baseBranch}...HEAD`);
+	} catch {
+		return [];
+	}
+}
 
-		// Get line counts for the same range
-		const numstatMap = new Map<string, { additions: number; deletions: number }>();
+/** Uncommitted changes: HEAD to working directory, plus untracked files */
+export function getUncommittedStatus(worktreePath: string): FileStatus[] {
+	try {
+		const tracked = parseDiffStatus(worktreePath, 'HEAD');
+
+		// Also pick up untracked files
+		let untracked: FileStatus[] = [];
 		try {
-			const numstat = run(`git diff --numstat ${baseBranch}`, worktreePath);
-			if (numstat) {
-				for (const line of numstat.split('\n')) {
-					const [add, del, ...rest] = line.split('\t');
-					const file = rest.join('\t');
-					numstatMap.set(file, {
-						additions: add === '-' ? 0 : parseInt(add),
-						deletions: del === '-' ? 0 : parseInt(del)
-					});
-				}
+			const untrackedOutput = run(
+				'git ls-files --others --exclude-standard',
+				worktreePath
+			);
+			if (untrackedOutput) {
+				untracked = untrackedOutput.split('\n').map((path) => ({
+					path,
+					status: 'untracked' as const,
+					additions: 0,
+					deletions: 0
+				}));
 			}
 		} catch {
-			// Line counts just won't be available
+			// Untracked listing failed, just skip
 		}
 
-		const files: FileStatus[] = [];
-		for (const line of nameStatus.split('\n')) {
-			const code = line[0];
-			const path = line.slice(1).trim();
-
-			let status: FileStatus['status'];
-			if (code === 'A') status = 'added';
-			else if (code === 'D') status = 'deleted';
-			else if (code === 'R') status = 'renamed';
-			else status = 'modified';
-
-			const stats = numstatMap.get(path) ?? { additions: 0, deletions: 0 };
-			files.push({ path, status, ...stats });
-		}
-
-		return files;
+		return [...tracked, ...untracked];
 	} catch {
 		return [];
 	}
