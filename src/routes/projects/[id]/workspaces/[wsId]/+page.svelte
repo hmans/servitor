@@ -7,7 +7,7 @@
 	let { data } = $props();
 
 	let input = $state('');
-	let sending = $state(false);
+	let sendingConvId = $state<string | null>(null);
 	let errorMessage = $state('');
 	let messagesEl: HTMLDivElement | undefined = $state();
 	let eventSource: EventSource | null = null;
@@ -40,16 +40,30 @@
 		const convId = data.activeConversationId;
 		if (!convId) return;
 
+		// Reset per-conversation state when switching
+		streamingParts = [];
+		sendingConvId = null;
+
 		const es = new EventSource(`/api/conversations/${convId}/stream`);
+
+		es.addEventListener('connected', (e) => {
+			const event = JSON.parse(e.data);
+			console.log('[claude] connected', event);
+			if (event.processing) {
+				sendingConvId = convId;
+			}
+		});
 
 		es.addEventListener('text_delta', (e) => {
 			const event = JSON.parse(e.data);
+			console.log('[claude] text_delta', event);
 			streamingParts = [...streamingParts, { type: 'text', text: event.text }];
 			scrollToBottom();
 		});
 
 		es.addEventListener('tool_use_start', (e) => {
 			const event = JSON.parse(e.data);
+			console.log('[claude] tool_use_start', event);
 			streamingParts = [
 				...streamingParts,
 				{ type: 'tool_use', tool: event.tool, input: event.input ?? '', toolUseId: event.toolUseId }
@@ -58,7 +72,8 @@
 		});
 
 		es.addEventListener('done', async () => {
-			sending = false;
+			console.log('[claude] done');
+			sendingConvId = null;
 			streamingParts = [];
 			await invalidateAll();
 			scrollToBottom();
@@ -67,9 +82,11 @@
 		es.addEventListener('error', (e) => {
 			try {
 				const event = JSON.parse((e as MessageEvent).data);
+				console.log('[claude] error', event);
 				if (event.message) errorMessage = event.message;
 			} catch {
 				// Native EventSource error
+				console.log('[claude] connection error', e);
 			}
 		});
 
@@ -86,7 +103,7 @@
 
 		const content = input.trim();
 		input = '';
-		sending = true;
+		sendingConvId = data.activeConversationId ?? null;
 		errorMessage = '';
 
 		localMessages = [
@@ -172,7 +189,7 @@
 	{#if data.activeConversationId}
 		<!-- Messages -->
 		<div bind:this={messagesEl} class="flex-1 overflow-auto py-4">
-			{#if localMessages.length === 0 && !sending}
+			{#if localMessages.length === 0 && sendingConvId !== data.activeConversationId}
 				<div class="flex h-full items-center justify-center">
 					<p class="text-zinc-600">Send a message to start the conversation.</p>
 				</div>
@@ -222,10 +239,12 @@
 								{/each}
 							</div>
 						</div>
-					{:else if sending}
+					{:else if sendingConvId === data.activeConversationId}
 						<div class="flex justify-start">
-							<div class="rounded-lg bg-zinc-800/50 px-4 py-3 text-sm text-zinc-500">
-								Thinking...
+							<div class="flex items-center gap-1 rounded-lg bg-zinc-800/50 px-4 py-3 text-sm text-zinc-500">
+								<span class="animate-bounce [animation-delay:0ms]">&bull;</span>
+								<span class="animate-bounce [animation-delay:150ms]">&bull;</span>
+								<span class="animate-bounce [animation-delay:300ms]">&bull;</span>
 							</div>
 						</div>
 					{/if}

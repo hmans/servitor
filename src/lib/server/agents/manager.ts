@@ -103,6 +103,10 @@ export function sendMessage(
 	process.send(opts.content);
 }
 
+export function isProcessing(conversationId: string): boolean {
+	return active.get(conversationId)?.process != null;
+}
+
 export function killProcess(conversationId: string): void {
 	const conv = active.get(conversationId);
 	if (conv?.process) {

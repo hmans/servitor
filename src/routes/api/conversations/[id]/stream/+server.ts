@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { conversation } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { subscribe } from '$lib/server/agents/manager';
+import { subscribe, isProcessing } from '$lib/server/agents/manager';
 
 export function GET({ params, request }) {
 	const conv = db.select().from(conversation).where(eq(conversation.id, params.id)).get();
@@ -23,7 +23,7 @@ export function GET({ params, request }) {
 				}
 			};
 
-			send('connected', { conversationId: params.id });
+			send('connected', { conversationId: params.id, processing: isProcessing(params.id) });
 
 			unsubscribe = subscribe(params.id, (event) => {
 				send(event.type, event);
