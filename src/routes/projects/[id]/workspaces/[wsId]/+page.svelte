@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
 	import InfoPane from '$lib/components/InfoPane.svelte';
@@ -30,6 +30,10 @@
 	$effect(() => {
 		localMessages = [...data.messages];
 		scrollToBottom();
+	});
+
+	// Focus composer on every navigation (entering/switching conversations)
+	afterNavigate(() => {
 		tick().then(() => composerEl?.focus());
 	});
 
@@ -177,19 +181,14 @@
 					<p class="text-sm text-zinc-600">Type a message to begin.</p>
 				</div>
 			{:else}
-				<div class="space-y-3">
+				<div class="space-y-4 leading-relaxed">
 					{#each localMessages as msg (msg.id)}
 						<div class="group">
 							{#if msg.role === 'user'}
-								<div class="flex items-baseline gap-2">
-									<span class="shrink-0 text-xs font-semibold text-pink-500">{'>'}</span>
-									<div class="whitespace-pre-wrap text-sm text-pink-400">{msg.content}</div>
-								</div>
+								<div class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white">{msg.content}</div>
 							{:else}
-								<div class="border-l-2 border-zinc-800 pl-3">
-									<div class="text-sm text-zinc-100">
-										<Markdown content={msg.content} />
-									</div>
+								<div class="text-sm text-zinc-100">
+									<Markdown content={msg.content} />
 								</div>
 							{/if}
 						</div>
@@ -200,10 +199,8 @@
 						<div class="space-y-1">
 							{#each streamingParts as part, i (i)}
 								{#if part.type === 'text'}
-									<div class="border-l-2 border-zinc-700 pl-3">
-										<div class="text-sm text-zinc-100">
-											<Markdown content={part.text} />
-										</div>
+									<div class="text-sm text-zinc-100">
+										<Markdown content={part.text} />
 									</div>
 								{:else if part.type === 'tool_use'}
 									<div class="flex items-center gap-2 pl-3 text-xs text-zinc-600">
@@ -271,6 +268,6 @@
 <!-- Resizer + Info pane -->
 <PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" />
 <div class="hidden shrink-0 overflow-auto pl-3 lg:block" style:width="{infoPaneWidth}px">
-	<InfoPane commits={data.commits} diff={data.diff} />
+	<InfoPane commits={data.commits} diff={data.diff} gitStatus={data.gitStatus} />
 </div>
 </div>

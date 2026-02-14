@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db';
 import { project, workspace, conversation, message } from '$lib/server/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
-import { removeWorktree, getDefaultBranch, getCommits, getDiff } from '$lib/server/git';
+import { removeWorktree, getDefaultBranch, getCommits, getDiff, getStatus } from '$lib/server/git';
 
 export async function load({ params, url }) {
 	const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
@@ -33,13 +33,14 @@ export async function load({ params, url }) {
 			.select()
 			.from(message)
 			.where(eq(message.conversationId, activeConvId))
-			.orderBy(asc(message.createdAt))
+			.orderBy(asc(message.createdAt), asc(sql`rowid`))
 			.all();
 	}
 
 	const baseBranch = getDefaultBranch(proj.repoPath);
 	const commits = getCommits(ws.worktreePath, baseBranch);
 	const diff = getDiff(ws.worktreePath, baseBranch);
+	const gitStatus = getStatus(ws.worktreePath, baseBranch);
 
 	return {
 		workspace: ws,
@@ -48,7 +49,8 @@ export async function load({ params, url }) {
 		activeConversationId: activeConvId,
 		messages,
 		commits,
-		diff
+		diff,
+		gitStatus
 	};
 }
 
