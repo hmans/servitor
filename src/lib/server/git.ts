@@ -50,6 +50,45 @@ export function getDefaultBranch(repoPath: string): string {
 	}
 }
 
+export interface Commit {
+	hash: string;
+	message: string;
+	author: string;
+	date: string;
+}
+
+export function getCommits(worktreePath: string, baseBranch: string): Commit[] {
+	try {
+		const log = run(
+			`git log ${baseBranch}..HEAD --format=%H%n%s%n%an%n%ai --`,
+			worktreePath
+		);
+		if (!log) return [];
+
+		const lines = log.split('\n');
+		const commits: Commit[] = [];
+		for (let i = 0; i + 3 < lines.length; i += 4) {
+			commits.push({
+				hash: lines[i],
+				message: lines[i + 1],
+				author: lines[i + 2],
+				date: lines[i + 3]
+			});
+		}
+		return commits;
+	} catch {
+		return [];
+	}
+}
+
+export function getDiff(worktreePath: string, baseBranch: string): string {
+	try {
+		return run(`git diff ${baseBranch}...HEAD`, worktreePath);
+	} catch {
+		return '';
+	}
+}
+
 /** Derive a filesystem-safe slug from a project name */
 export function slugify(name: string): string {
 	return name

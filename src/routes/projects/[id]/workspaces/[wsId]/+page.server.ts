@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { project, workspace, conversation, message } from '$lib/server/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
-import { removeWorktree } from '$lib/server/git';
+import { removeWorktree, getDefaultBranch, getCommits, getDiff } from '$lib/server/git';
 
 export async function load({ params, url }) {
 	const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
@@ -37,12 +37,18 @@ export async function load({ params, url }) {
 			.all();
 	}
 
+	const baseBranch = getDefaultBranch(proj.repoPath);
+	const commits = getCommits(ws.worktreePath, baseBranch);
+	const diff = getDiff(ws.worktreePath, baseBranch);
+
 	return {
 		workspace: ws,
 		project: proj,
 		conversations,
 		activeConversationId: activeConvId,
-		messages
+		messages,
+		commits,
+		diff
 	};
 }
 

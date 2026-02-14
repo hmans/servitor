@@ -3,6 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
+	import InfoPane from '$lib/components/InfoPane.svelte';
 
 	let { data } = $props();
 
@@ -143,7 +144,9 @@
 	});
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full gap-6">
+<!-- Chat column -->
+<div class="flex min-w-0 flex-1 flex-col">
 	<!-- Header -->
 	<div class="flex items-center justify-between border-b border-zinc-800 pb-4">
 		<div>
@@ -271,4 +274,10 @@
 			</form>
 		</div>
 	{/if}
+</div>
+
+<!-- Info pane -->
+<div class="hidden w-[400px] shrink-0 border-l border-zinc-800 pl-6 lg:block">
+	<InfoPane commits={data.commits} diff={data.diff} />
+</div>
 </div>
