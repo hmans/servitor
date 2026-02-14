@@ -51,6 +51,7 @@
 		"vitest-browser-svelte": "^2.0.2"
 	},
 	"dependencies": {
+		"@fontsource-variable/spline-sans-mono": "^5.2.8",
 		"better-sqlite3": "^12.6.2",
 		"marked": "^17.0.2"
 	},

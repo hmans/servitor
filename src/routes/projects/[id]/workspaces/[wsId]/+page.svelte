@@ -148,14 +148,13 @@
 
 <div class="flex h-full">
 <!-- Chat column -->
-<div class="flex min-w-0 flex-1 flex-col pr-3">
+<div class="flex min-w-0 flex-1 flex-col pr-3 font-mono">
 	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-zinc-800 pb-4">
-		<div>
-			<div class="text-sm text-zinc-500">
-				<a href="/projects/{data.project.id}" class="hover:text-zinc-300">{data.project.name}</a>
-			</div>
-			<h2 class="text-xl font-bold">{data.workspace.name}</h2>
+	<div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+		<div class="flex items-center gap-2 text-sm">
+			<a href="/projects/{data.project.id}" class="text-zinc-500 hover:text-zinc-300">{data.project.name}</a>
+			<span class="text-zinc-700">/</span>
+			<span class="text-zinc-200">{data.workspace.name}</span>
 		</div>
 		<form method="POST" action="?/delete" use:enhance>
 			<button
@@ -163,73 +162,63 @@
 				onclick={(e: MouseEvent) => {
 					if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
 				}}
-				class="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:border-red-800 hover:text-red-400"
+				class="text-xs text-zinc-600 transition-colors hover:text-red-400"
 			>
-				Delete
+				[delete]
 			</button>
 		</form>
 	</div>
 
 	{#if data.activeConversationId}
 		<!-- Messages -->
-		<div bind:this={messagesEl} class="flex-1 overflow-auto py-4">
+		<div bind:this={messagesEl} class="flex-1 overflow-auto py-3">
 			{#if localMessages.length === 0 && sendingConvId !== data.activeConversationId}
 				<div class="flex h-full items-center justify-center">
-					<p class="text-zinc-600">Send a message to start the conversation.</p>
+					<p class="text-sm text-zinc-600">Type a message to begin.</p>
 				</div>
 			{:else}
-				<div class="space-y-4">
+				<div class="space-y-3">
 					{#each localMessages as msg (msg.id)}
-						<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-							<div
-								class="max-w-[80%] rounded-lg px-4 py-3 {msg.role === 'user'
-									? 'bg-zinc-700 text-zinc-100'
-									: 'bg-zinc-800/50 text-zinc-300'}"
-							>
-								{#if msg.role === 'user'}
-								<div class="whitespace-pre-wrap text-sm">{msg.content}</div>
+						<div class="group">
+							{#if msg.role === 'user'}
+								<div class="flex items-baseline gap-2">
+									<span class="shrink-0 text-xs font-semibold text-pink-500">{'>'}</span>
+									<div class="whitespace-pre-wrap text-sm text-pink-400">{msg.content}</div>
+								</div>
 							{:else}
-								<Markdown content={msg.content} />
+								<div class="border-l-2 border-zinc-800 pl-3">
+									<div class="text-sm text-zinc-100">
+										<Markdown content={msg.content} />
+									</div>
+								</div>
 							{/if}
-							</div>
 						</div>
 					{/each}
 
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
-						<div class="flex justify-start">
-							<div class="max-w-[80%] space-y-2">
-								{#each streamingParts as part, i (i)}
-									{#if part.type === 'text'}
-										<div class="rounded-lg bg-zinc-800/50 px-4 py-3 text-zinc-300">
+						<div class="space-y-1">
+							{#each streamingParts as part, i (i)}
+								{#if part.type === 'text'}
+									<div class="border-l-2 border-zinc-700 pl-3">
+										<div class="text-sm text-zinc-100">
 											<Markdown content={part.text} />
 										</div>
-									{:else if part.type === 'tool_use'}
-										<div
-											class="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
-										>
-											<span
-												class="mt-0.5 shrink-0 rounded bg-zinc-700 px-1.5 py-0.5 font-mono text-xs text-zinc-300"
-											>
-												{part.tool}
-											</span>
-											{#if part.input}
-												<span class="truncate font-mono text-xs text-zinc-500">
-													{part.input}
-												</span>
-											{/if}
-										</div>
-									{/if}
-								{/each}
-							</div>
+									</div>
+								{:else if part.type === 'tool_use'}
+									<div class="flex items-center gap-2 pl-3 text-xs text-zinc-600">
+										<span class="text-amber-600">[tool]</span>
+										<span class="text-zinc-500">{part.tool}</span>
+										{#if part.input}
+											<span class="truncate text-zinc-700">{part.input}</span>
+										{/if}
+									</div>
+								{/if}
+							{/each}
 						</div>
 					{:else if sendingConvId === data.activeConversationId}
-						<div class="flex justify-start">
-							<div class="flex items-center gap-1 rounded-lg bg-zinc-800/50 px-4 py-3 text-sm text-zinc-500">
-								<span class="animate-bounce [animation-delay:0ms]">&bull;</span>
-								<span class="animate-bounce [animation-delay:150ms]">&bull;</span>
-								<span class="animate-bounce [animation-delay:300ms]">&bull;</span>
-							</div>
+						<div class="flex items-center gap-1 pl-3 text-sm text-zinc-600">
+							<span class="animate-pulse">...</span>
 						</div>
 					{/if}
 				</div>
@@ -238,29 +227,30 @@
 
 		<!-- Error -->
 		{#if errorMessage}
-			<div class="border-t border-red-900 bg-red-950/50 px-4 py-2 text-sm text-red-400">
-				{errorMessage}
-				<button onclick={() => (errorMessage = '')} class="ml-2 underline">dismiss</button>
+			<div class="border-t border-red-900/50 px-3 py-2 text-xs text-red-400">
+				<span class="text-red-600">[error]</span> {errorMessage}
+				<button onclick={() => (errorMessage = '')} class="ml-2 text-red-600 hover:text-red-400">dismiss</button>
 			</div>
 		{/if}
 
 		<!-- Input -->
-		<div class="border-t border-zinc-800 pt-4">
-			<div class="flex gap-3">
+		<div class="border-t border-zinc-800 pt-3">
+			<div class="flex items-end gap-2">
+				<span class="pb-2 text-sm text-pink-600">{'>'}</span>
 				<textarea
 					bind:this={composerEl}
 					bind:value={input}
 					onkeydown={handleKeydown}
-					placeholder="Send a message..."
+					placeholder="..."
 					rows="1"
-					class="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
+					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
 				<button
 					onclick={sendMessage}
 					disabled={!input.trim()}
-					class="rounded-lg bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-white disabled:opacity-30"
+					class="pb-1.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
 				>
-					Send
+					[send]
 				</button>
 			</div>
 		</div>
@@ -269,9 +259,9 @@
 			<form method="POST" action="?/new-conversation" use:enhance>
 				<button
 					type="submit"
-					class="rounded-lg bg-zinc-800 px-6 py-3 text-zinc-300 transition-colors hover:bg-zinc-700"
+					class="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
 				>
-					Start a Conversation
+					[start conversation]
 				</button>
 			</form>
 		</div>

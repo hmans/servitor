@@ -61,7 +61,7 @@
 								{#each ws.conversations as conv}
 									<a
 										href="/projects/{proj.id}/workspaces/{ws.id}?conv={conv.id}"
-										class="block truncate rounded-md px-2 py-1 text-xs transition-colors {isActiveConversation(conv.id)
+										class="block truncate rounded-md px-2 py-1.5 text-sm transition-colors {isActiveConversation(conv.id)
 											? 'text-zinc-100'
 											: 'text-zinc-500 hover:text-zinc-300'}"
 									>

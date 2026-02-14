@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/spline-sans-mono';
+
+@theme {
+	--font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
+}
 
 /* Markdown rendering in chat messages */
 .markdown h1,
@@ -55,7 +60,7 @@
 }
 
 .markdown code {
-	font-family: ui-monospace, monospace;
+	font-family: var(--font-mono);
 	font-size: 0.875em;
 	background: rgb(63 63 70 / 0.5);
 	padding: 0.15em 0.35em;
