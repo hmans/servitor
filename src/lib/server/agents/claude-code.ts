@@ -1,27 +1,36 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import type { AgentAdapter, AgentProcess, AgentStartConfig, AgentEvent } from './types';
+
+// Resolve the full path to claude at module load time
+let claudePath = 'claude';
+try {
+	claudePath = execSync('which claude', { encoding: 'utf-8' }).trim();
+} catch {
+	console.warn('[claude-code] could not resolve claude path, using "claude"');
+}
 
 export class ClaudeCodeAdapter implements AgentAdapter {
 	start(config: AgentStartConfig): AgentProcess {
-		const args = [
-			'-p',
-			config.message,
-			'--output-format',
-			'stream-json',
-			'--verbose'
-		];
+		const args = ['-p', config.message, '--output-format', 'stream-json', '--verbose'];
 
 		if (config.sessionId) {
 			args.push('--resume', config.sessionId);
 		}
 
-		const proc = spawn('claude', args, {
+		// Strip CLAUDECODE env var to allow nested sessions
+		const env = { ...process.env };
+		delete env.CLAUDECODE;
+
+		const proc = spawn(claudePath, args, {
 			cwd: config.cwd,
-			stdio: ['pipe', 'pipe', 'pipe']
+			stdio: ['pipe', 'pipe', 'pipe'],
+			env
 		});
 
+		// Close stdin immediately — claude -p doesn't read from it
+		proc.stdin.end();
+
 		const listeners: Array<(event: AgentEvent) => void> = [];
-		let fullText = '';
 		let sessionId = '';
 		let buffer = '';
 
@@ -32,7 +41,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		proc.stdout.on('data', (chunk: Buffer) => {
 			buffer += chunk.toString();
 			const lines = buffer.split('\n');
-			// Keep the last incomplete line in the buffer
 			buffer = lines.pop() ?? '';
 
 			for (const line of lines) {
@@ -40,16 +48,13 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
 				try {
 					const parsed = JSON.parse(line);
-					const event = parseStreamEvent(parsed);
 
 					if (parsed.session_id) {
 						sessionId = parsed.session_id;
 					}
 
-					if (event) {
-						if (event.type === 'text_delta') {
-							fullText += event.text;
-						}
+					const events = parseClaudeEvent(parsed);
+					for (const event of events) {
 						emit(event);
 					}
 				} catch {
@@ -66,14 +71,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		});
 
 		proc.on('close', () => {
-			// Process remaining buffer
 			if (buffer.trim()) {
 				try {
 					const parsed = JSON.parse(buffer);
 					if (parsed.session_id) sessionId = parsed.session_id;
-					const event = parseStreamEvent(parsed);
-					if (event) {
-						if (event.type === 'text_delta') fullText += event.text;
+					const events = parseClaudeEvent(parsed);
+					for (const event of events) {
 						emit(event);
 					}
 				} catch {
@@ -81,7 +84,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 				}
 			}
 
-			emit({ type: 'message_complete', text: fullText, sessionId });
 			emit({ type: 'done', sessionId });
 		});
 
@@ -101,48 +103,76 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 	}
 }
 
-function parseStreamEvent(data: Record<string, unknown>): AgentEvent | null {
-	// Handle result type (final output)
-	if (data.type === 'result') {
-		return null; // We build the full text from deltas instead
-	}
+/**
+ * Parse Claude Code CLI stream-json events into our normalized events.
+ *
+ * Claude Code CLI emits these top-level types:
+ * - "system" (subtypes: hook_started, hook_response, init) — skip
+ * - "assistant" — contains message.content with text/tool_use blocks
+ * - "result" — final result with full text
+ */
+function parseClaudeEvent(data: Record<string, unknown>): AgentEvent[] {
+	const events: AgentEvent[] = [];
 
-	// Handle assistant message type
 	if (data.type === 'assistant') {
-		// Complete message object — we can extract text from content blocks
 		const message = data.message as Record<string, unknown> | undefined;
-		const content = (message?.content ?? data.content) as Array<Record<string, unknown>> | undefined;
-		if (content) {
-			const textBlock = content.find((b) => b.type === 'text');
-			if (textBlock && typeof textBlock.text === 'string') {
-				// We don't emit this as text_delta since we build from stream deltas
-				return null;
+		const content = (message?.content ?? []) as Array<Record<string, unknown>>;
+
+		for (const block of content) {
+			if (block.type === 'text' && typeof block.text === 'string') {
+				events.push({ type: 'text_delta', text: block.text });
+			}
+			if (block.type === 'tool_use') {
+				const input = block.input as Record<string, unknown> | undefined;
+				events.push({
+					type: 'tool_use_start',
+					tool: block.name as string,
+					toolUseId: block.id as string,
+					input: summarizeToolInput(block.name as string, input)
+				});
 			}
 		}
-		return null;
 	}
 
-	// Handle content_block_start for tool use
-	if (data.type === 'content_block_start') {
-		const block = data.content_block as Record<string, unknown> | undefined;
-		if (block?.type === 'tool_use') {
-			return {
-				type: 'tool_use_start',
-				tool: block.name as string,
-				toolUseId: block.id as string
-			};
+	if (data.type === 'result') {
+		const result = data.result as string | undefined;
+		const sid = data.session_id as string | undefined;
+		if (result) {
+			events.push({
+				type: 'message_complete',
+				text: result,
+				sessionId: sid ?? ''
+			});
 		}
-		return null;
 	}
 
-	// Handle content_block_delta for text
-	if (data.type === 'content_block_delta') {
-		const delta = data.delta as Record<string, unknown> | undefined;
-		if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
-			return { type: 'text_delta', text: delta.text };
-		}
-		return null;
-	}
+	return events;
+}
 
-	return null;
+/** Extract a short human-readable summary of what a tool is doing */
+function summarizeToolInput(tool: string, input?: Record<string, unknown>): string {
+	if (!input) return '';
+
+	switch (tool) {
+		case 'Read':
+			return (input.file_path as string) ?? '';
+		case 'Write':
+			return (input.file_path as string) ?? '';
+		case 'Edit':
+			return (input.file_path as string) ?? '';
+		case 'Bash':
+			return (input.command as string) ?? '';
+		case 'Glob':
+			return (input.pattern as string) ?? '';
+		case 'Grep':
+			return (input.pattern as string) ?? '';
+		case 'WebFetch':
+			return (input.url as string) ?? '';
+		case 'WebSearch':
+			return (input.query as string) ?? '';
+		case 'Task':
+			return (input.description as string) ?? '';
+		default:
+			return '';
+	}
 }

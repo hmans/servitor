@@ -6,7 +6,7 @@ export interface AgentStartConfig {
 
 export type AgentEvent =
 	| { type: 'text_delta'; text: string }
-	| { type: 'tool_use_start'; tool: string; toolUseId: string }
+	| { type: 'tool_use_start'; tool: string; toolUseId: string; input: string }
 	| { type: 'tool_result'; toolUseId: string }
 	| { type: 'message_complete'; text: string; sessionId: string }
 	| { type: 'error'; message: string }

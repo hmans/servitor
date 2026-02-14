@@ -1,11 +1,11 @@
 ---
 # serv-6zn7
 title: Agent Chat
-status: in-progress
+status: completed
 type: epic
 priority: normal
 created_at: 2026-02-14T12:08:55Z
-updated_at: 2026-02-14T12:34:54Z
+updated_at: 2026-02-14T13:58:17Z
 parent: serv-c2rd
 blocked_by:
     - serv-i5r9

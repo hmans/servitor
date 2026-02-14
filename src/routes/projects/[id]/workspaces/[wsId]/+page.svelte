@@ -1,30 +1,30 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { onDestroy, tick } from 'svelte';
 
 	let { data } = $props();
 
 	let input = $state('');
 	let sending = $state(false);
-	let streamingText = $state('');
-	let streamingToolName = $state('');
+	let errorMessage = $state('');
 	let messagesEl: HTMLDivElement | undefined = $state();
-	let eventSource: EventSource | null = $state(null);
+	let eventSource: EventSource | null = null;
 
-	// Displayed messages = persisted + streaming
-	let displayMessages = $derived([
-		...data.messages,
-		...(streamingText || streamingToolName
-			? [
-					{
-						id: '_streaming',
-						role: 'assistant' as const,
-						content: streamingText || `Using tool: ${streamingToolName}...`,
-						createdAt: new Date()
-					}
-				]
-			: [])
-	]);
+	// Streaming state — built up as SSE events arrive
+	let streamingParts: Array<
+		| { type: 'text'; text: string }
+		| { type: 'tool_use'; tool: string; input: string; toolUseId: string }
+	> = $state([]);
+
+	// Local copy of messages for optimistic updates
+	let localMessages: Array<{ id: string; role: string; content: string; createdAt: Date }> =
+		$state([]);
+
+	// Sync from server data when it changes
+	$effect(() => {
+		localMessages = [...data.messages];
+	});
 
 	function scrollToBottom() {
 		tick().then(() => {
@@ -34,50 +34,51 @@
 		});
 	}
 
-	function connectSSE() {
-		if (!data.activeConversationId) return;
+	// SSE lifecycle
+	$effect(() => {
+		const convId = data.activeConversationId;
+		if (!convId) return;
 
-		eventSource?.close();
-		const es = new EventSource(`/api/conversations/${data.activeConversationId}/stream`);
+		const es = new EventSource(`/api/conversations/${convId}/stream`);
 
 		es.addEventListener('text_delta', (e) => {
 			const event = JSON.parse(e.data);
-			streamingText += event.text;
-			streamingToolName = '';
+			streamingParts = [...streamingParts, { type: 'text', text: event.text }];
 			scrollToBottom();
 		});
 
 		es.addEventListener('tool_use_start', (e) => {
 			const event = JSON.parse(e.data);
-			streamingToolName = event.tool;
+			streamingParts = [
+				...streamingParts,
+				{ type: 'tool_use', tool: event.tool, input: event.input ?? '', toolUseId: event.toolUseId }
+			];
 			scrollToBottom();
 		});
 
-		es.addEventListener('done', () => {
+		es.addEventListener('done', async () => {
 			sending = false;
-			streamingText = '';
-			streamingToolName = '';
-			// Reload data to get persisted messages
-			reloadMessages();
+			streamingParts = [];
+			await invalidateAll();
+			scrollToBottom();
 		});
 
-		es.addEventListener('error', () => {
-			// EventSource will auto-reconnect
+		es.addEventListener('error', (e) => {
+			try {
+				const event = JSON.parse((e as MessageEvent).data);
+				if (event.message) errorMessage = event.message;
+			} catch {
+				// Native EventSource error
+			}
 		});
 
 		eventSource = es;
-	}
 
-	async function reloadMessages() {
-		// Re-fetch the page data to get fresh messages
-		const res = await fetch(window.location.href, { headers: { accept: 'application/json' } });
-		if (res.ok) {
-			// SvelteKit will handle the data update through invalidation
-			const { invalidate } = await import('$app/navigation');
-			await invalidate(() => true);
-		}
-		scrollToBottom();
-	}
+		return () => {
+			es.close();
+			eventSource = null;
+		};
+	});
 
 	async function sendMessage() {
 		if (!input.trim() || !data.activeConversationId || sending) return;
@@ -85,28 +86,29 @@
 		const content = input.trim();
 		input = '';
 		sending = true;
-		streamingText = '';
-		streamingToolName = '';
+		streamingParts = [];
+		errorMessage = '';
 
-		// Optimistically add user message
-		data.messages = [
-			...data.messages,
-			{
-				id: `_optimistic_${Date.now()}`,
-				role: 'user',
-				content,
-				createdAt: new Date()
-			}
+		localMessages = [
+			...localMessages,
+			{ id: `_optimistic_${Date.now()}`, role: 'user', content, createdAt: new Date() }
 		];
 		scrollToBottom();
 
 		try {
-			await fetch(`/api/conversations/${data.activeConversationId}/messages`, {
+			const res = await fetch(`/api/conversations/${data.activeConversationId}/messages`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ content })
 			});
-		} catch {
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ message: 'Failed to send message' }));
+				errorMessage = err.message ?? 'Failed to send message';
+				sending = false;
+			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Network error';
 			sending = false;
 		}
 	}
@@ -118,20 +120,8 @@
 		}
 	}
 
-	onMount(() => {
-		connectSSE();
-		scrollToBottom();
-	});
-
 	onDestroy(() => {
 		eventSource?.close();
-	});
-
-	// Reconnect SSE when conversation changes
-	$effect(() => {
-		if (data.activeConversationId) {
-			connectSSE();
-		}
 	});
 </script>
 
@@ -184,13 +174,13 @@
 	{#if data.activeConversationId}
 		<!-- Messages -->
 		<div bind:this={messagesEl} class="flex-1 overflow-auto py-4">
-			{#if displayMessages.length === 0}
+			{#if localMessages.length === 0 && !sending}
 				<div class="flex h-full items-center justify-center">
 					<p class="text-zinc-600">Send a message to start the conversation.</p>
 				</div>
 			{:else}
 				<div class="space-y-4">
-					{#each displayMessages as msg (msg.id)}
+					{#each localMessages as msg (msg.id)}
 						<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
 							<div
 								class="max-w-[80%] rounded-lg px-4 py-3 {msg.role === 'user'
@@ -201,9 +191,53 @@
 							</div>
 						</div>
 					{/each}
+
+					<!-- Streaming content -->
+					{#if streamingParts.length > 0}
+						<div class="flex justify-start">
+							<div class="max-w-[80%] space-y-2">
+								{#each streamingParts as part, i (i)}
+									{#if part.type === 'text'}
+										<div class="rounded-lg bg-zinc-800/50 px-4 py-3 text-zinc-300">
+											<div class="whitespace-pre-wrap text-sm">{part.text}</div>
+										</div>
+									{:else if part.type === 'tool_use'}
+										<div
+											class="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
+										>
+											<span
+												class="mt-0.5 shrink-0 rounded bg-zinc-700 px-1.5 py-0.5 font-mono text-xs text-zinc-300"
+											>
+												{part.tool}
+											</span>
+											{#if part.input}
+												<span class="truncate font-mono text-xs text-zinc-500">
+													{part.input}
+												</span>
+											{/if}
+										</div>
+									{/if}
+								{/each}
+							</div>
+						</div>
+					{:else if sending}
+						<div class="flex justify-start">
+							<div class="rounded-lg bg-zinc-800/50 px-4 py-3 text-sm text-zinc-500">
+								Thinking...
+							</div>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
+
+		<!-- Error -->
+		{#if errorMessage}
+			<div class="border-t border-red-900 bg-red-950/50 px-4 py-2 text-sm text-red-400">
+				{errorMessage}
+				<button onclick={() => (errorMessage = '')} class="ml-2 underline">dismiss</button>
+			</div>
+		{/if}
 
 		<!-- Input -->
 		<div class="border-t border-zinc-800 pt-4">

@@ -1,11 +1,11 @@
 ---
 # serv-e7cy
 title: Agent adapter abstraction
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-02-14T12:09:34Z
-updated_at: 2026-02-14T12:34:54Z
+updated_at: 2026-02-14T13:58:17Z
 parent: serv-6zn7
 ---
 
@@ -30,6 +30,6 @@ interface AgentMessage {
 ```
 
 ## Tasks
-- [ ] Define TypeScript interfaces for agent adapters
-- [ ] Define normalized message types
-- [ ] Set up adapter registry (map of agentType -> adapter)
+- [x] Define TypeScript interfaces for agent adapters
+- [x] Define normalized message types
+- [x] Set up adapter registry (map of agentType -> adapter)
