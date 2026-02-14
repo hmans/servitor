@@ -107,6 +107,15 @@ export function isProcessing(conversationId: string): boolean {
 	return active.get(conversationId)?.process != null;
 }
 
+/** Return a debug snapshot of all active conversations */
+export function debugState(): Array<{ conversationId: string; hasProcess: boolean; listeners: number }> {
+	return [...active.entries()].map(([id, conv]) => ({
+		conversationId: id,
+		hasProcess: conv.process != null,
+		listeners: conv.listeners.size
+	}));
+}
+
 export function killProcess(conversationId: string): void {
 	const conv = active.get(conversationId);
 	if (conv?.process) {
