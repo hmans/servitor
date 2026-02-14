@@ -82,12 +82,11 @@
 	});
 
 	async function sendMessage() {
-		if (!input.trim() || !data.activeConversationId || sending) return;
+		if (!input.trim() || !data.activeConversationId) return;
 
 		const content = input.trim();
 		input = '';
 		sending = true;
-		streamingParts = [];
 		errorMessage = '';
 
 		localMessages = [
@@ -106,11 +105,9 @@
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({ message: 'Failed to send message' }));
 				errorMessage = err.message ?? 'Failed to send message';
-				sending = false;
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Network error';
-			sending = false;
 		}
 	}
 
@@ -252,12 +249,11 @@
 					onkeydown={handleKeydown}
 					placeholder="Send a message..."
 					rows="1"
-					disabled={sending}
-					class="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none disabled:opacity-50"
+					class="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
 				></textarea>
 				<button
 					onclick={sendMessage}
-					disabled={!input.trim() || sending}
+					disabled={!input.trim()}
 					class="rounded-lg bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-white disabled:opacity-30"
 				>
 					Send
