@@ -86,8 +86,17 @@
 			scrollToBottom();
 		});
 
+		es.addEventListener('message_complete', async () => {
+			console.log('[claude] message_complete');
+			sendingConvId = null;
+			processAlive = false;
+			streamingParts = [];
+			await invalidateAll();
+			scrollToBottom();
+		});
+
 		es.addEventListener('done', async () => {
-			console.log('[claude] done');
+			console.log('[claude] done (process exited)');
 			sendingConvId = null;
 			processAlive = false;
 			streamingParts = [];
