@@ -4,9 +4,10 @@
 
 - A parallel agent orchestrator for high-velocity software development.
 - SvelteKit full-stack web application.
-- User can create one or multiple code projects (basically just a path to a git repository on the same machine.)
-- Designed to be run locally, but also on a remote VM (with repositories on that VM).
+- Works with a single git repository — the one Servitor is launched from.
+- Designed to be run locally, but also on a remote VM (with the repository on that VM).
 - Integrates with GitHub for pull requests, issues, and project management.
+- Must be launched from within a git repository.
 
 ## Tech Stack
 
@@ -17,11 +18,28 @@
 - **Markdown:** `marked` library with custom renderer (links open in new tabs)
 - **Package manager:** pnpm
 
+## Configuration
+
+- Config is loaded at startup from CWD (`git rev-parse --show-toplevel`) and optional `.servitor.yml` in repo root
+- `.servitor.yml` format:
+  ```yaml
+  name: My Project          # optional, defaults to basename of repo
+  worktreesDir: ~/worktrees  # optional, defaults to ~/servitor-worktrees
+  ```
+- Config singleton: `src/lib/server/config.ts` exports `config` with `repoPath`, `projectName`, `projectSlug`, `worktreesDir`
+
 ## Workspaces
 
 - User can create, interact with, close etc. workspaces
-- Each workspace is a git worktree of the project it belongs to
+- Each workspace is a git worktree of the repository
 - Workspaces can contain one or more conversations (agent sessions)
+
+## Route Structure
+
+- `/` — Workspace list (landing page)
+- `/workspaces/new` — Create workspace
+- `/workspaces/[id]` — Workspace chat interface
+- `/api/conversations/[id]/*` — Conversation API endpoints
 
 ## Agent Architecture
 
@@ -34,8 +52,7 @@
 
 ## Database Schema
 
-- **project** — name, repo_path
-- **workspace** — belongs to project, has branch + worktree_path
+- **workspace** — name, branch, worktree_path, status
 - **conversation** — belongs to workspace, has agentType + agentSessionId
 - **message** — belongs to conversation, has role (user/assistant/system/tool), content, and optional `tool_invocations` (JSON array of `{ tool, toolUseId, input }`)
 

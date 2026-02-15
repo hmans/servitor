@@ -1,10 +1,9 @@
 import { db } from '$lib/server/db';
-import { project, workspace, conversation } from '$lib/server/db/schema';
+import { workspace, conversation } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
+import { config } from '$lib/server/config';
 
 export async function load() {
-	const projects = db.select().from(project).orderBy(asc(project.name)).all();
-
 	const workspaces = db
 		.select()
 		.from(workspace)
@@ -18,20 +17,12 @@ export async function load() {
 		.orderBy(asc(conversation.createdAt))
 		.all();
 
-	// Build the tree
 	const convsByWorkspace = Map.groupBy(conversations, (c) => c.workspaceId);
-	const wsByProject = Map.groupBy(
-		workspaces.map((ws) => ({
-			...ws,
-			conversations: convsByWorkspace.get(ws.id) ?? []
-		})),
-		(ws) => ws.projectId
-	);
 
-	const tree = projects.map((p) => ({
-		...p,
-		workspaces: wsByProject.get(p.id) ?? []
+	const tree = workspaces.map((ws) => ({
+		...ws,
+		conversations: convsByWorkspace.get(ws.id) ?? []
 	}));
 
-	return { projects: tree };
+	return { workspaces: tree, projectName: config.projectName };
 }

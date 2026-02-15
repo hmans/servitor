@@ -13,7 +13,7 @@
 
 <div class="flex h-screen bg-zinc-950 text-zinc-100">
 	<div class="shrink-0 border-r border-zinc-800" style:width="{sidebarWidth}px">
-		<Sidebar projects={data.projects} />
+		<Sidebar workspaces={data.workspaces} projectName={data.projectName} />
 	</div>
 
 	<PaneResizer bind:width={sidebarWidth} min={180} max={480} side="left" storageKey="pane:sidebar" />

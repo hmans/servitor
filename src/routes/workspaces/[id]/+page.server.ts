@@ -1,20 +1,17 @@
 import { db } from '$lib/server/db';
-import { project, workspace, conversation, message } from '$lib/server/db/schema';
+import { workspace, conversation, message } from '$lib/server/db/schema';
 import { eq, asc, sql } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import { removeWorktree, getDefaultBranch, getCommits, getDiff, getUncommittedDiff, getStatus, getUncommittedStatus } from '$lib/server/git';
 
 export async function load({ params, url }) {
-	const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
+	const ws = db.select().from(workspace).where(eq(workspace.id, params.id)).get();
 	if (!ws) error(404, 'Workspace not found');
-
-	const proj = db.select().from(project).where(eq(project.id, params.id)).get();
-	if (!proj) error(404, 'Project not found');
 
 	const conversations = db
 		.select()
 		.from(conversation)
-		.where(eq(conversation.workspaceId, params.wsId))
+		.where(eq(conversation.workspaceId, params.id))
 		.orderBy(asc(conversation.createdAt))
 		.all();
 
@@ -38,7 +35,7 @@ export async function load({ params, url }) {
 			.all();
 	}
 
-	const baseBranch = getDefaultBranch(proj.repoPath);
+	const baseBranch = getDefaultBranch();
 	const commits = getCommits(ws.worktreePath, baseBranch);
 	const committedDiff = getDiff(ws.worktreePath, baseBranch);
 	const committedStatus = getStatus(ws.worktreePath, baseBranch);
@@ -47,7 +44,6 @@ export async function load({ params, url }) {
 
 	return {
 		workspace: ws,
-		project: proj,
 		conversations,
 		activeConversationId: activeConvId,
 		messages,
@@ -61,41 +57,38 @@ export async function load({ params, url }) {
 
 export const actions = {
 	delete: async ({ params }) => {
-		const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
+		const ws = db.select().from(workspace).where(eq(workspace.id, params.id)).get();
 		if (!ws) error(404, 'Workspace not found');
 
-		const proj = db.select().from(project).where(eq(project.id, params.id)).get();
-		if (!proj) error(404, 'Project not found');
-
 		try {
-			removeWorktree(proj.repoPath, ws.worktreePath, ws.branch);
+			removeWorktree(ws.worktreePath, ws.branch);
 		} catch {
 			// Worktree may already be gone
 		}
 
-		db.delete(workspace).where(eq(workspace.id, params.wsId)).run();
-		redirect(303, `/projects/${params.id}`);
+		db.delete(workspace).where(eq(workspace.id, params.id)).run();
+		redirect(303, '/');
 	},
 
 	'new-conversation': async ({ params }) => {
-		const ws = db.select().from(workspace).where(eq(workspace.id, params.wsId)).get();
+		const ws = db.select().from(workspace).where(eq(workspace.id, params.id)).get();
 		if (!ws) error(404, 'Workspace not found');
 
 		const count = db
 			.select()
 			.from(conversation)
-			.where(eq(conversation.workspaceId, params.wsId))
+			.where(eq(conversation.workspaceId, params.id))
 			.all().length;
 
 		const conv = db
 			.insert(conversation)
 			.values({
-				workspaceId: params.wsId,
+				workspaceId: params.id,
 				title: `Conversation ${count + 1}`
 			})
 			.returning()
 			.get();
 
-		redirect(303, `/projects/${params.id}/workspaces/${params.wsId}?conv=${conv.id}`);
+		redirect(303, `/workspaces/${params.id}?conv=${conv.id}`);
 	}
 };

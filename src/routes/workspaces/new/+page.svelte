@@ -5,7 +5,7 @@
 </script>
 
 <div class="mx-auto max-w-lg">
-	<h2 class="mb-6 text-2xl font-bold">New Project</h2>
+	<h2 class="mb-6 text-2xl font-bold">New Workspace</h2>
 
 	<form method="POST" use:enhance class="space-y-4">
 		{#if form?.error}
@@ -23,24 +23,11 @@
 				required
 				value={form?.name ?? ''}
 				class="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
-				placeholder="My Project"
+				placeholder="fix-login-bug"
 			/>
-		</div>
-
-		<div>
-			<label for="repoPath" class="mb-1 block text-sm font-medium text-zinc-300"
-				>Repository Path</label
-			>
-			<input
-				id="repoPath"
-				name="repoPath"
-				type="text"
-				required
-				value={form?.repoPath ?? ''}
-				class="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
-				placeholder="/path/to/repo"
-			/>
-			<p class="mt-1 text-xs text-zinc-500">Absolute path to a local git repository.</p>
+			<p class="mt-1 text-xs text-zinc-500">
+				Lowercase, hyphens OK. Branch will be <span class="font-mono">servitor/&lt;name&gt;</span>.
+			</p>
 		</div>
 
 		<div class="flex gap-3 pt-2">
@@ -48,7 +35,7 @@
 				type="submit"
 				class="rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-white"
 			>
-				Create Project
+				Create Workspace
 			</button>
 			<a
 				href="/"

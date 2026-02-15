@@ -174,8 +174,6 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between border-b border-zinc-800 pb-3">
 		<div class="flex items-center gap-2 text-sm">
-			<a href="/projects/{data.project.id}" class="text-zinc-500 hover:text-zinc-300">{data.project.name}</a>
-			<span class="text-zinc-700">/</span>
 			<span class="text-zinc-200">{data.workspace.name}</span>
 			{#if processAlive || sendingConvId}
 				<span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
