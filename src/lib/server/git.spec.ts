@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 // Mock config before importing git module (config runs execSync at load time)
 vi.mock('./config', () => ({
@@ -17,8 +17,9 @@ vi.mock('fs');
 
 const mockedExecSync = vi.mocked(execSync);
 const mockedExistsSync = vi.mocked(existsSync);
+const mockedMkdirSync = vi.mocked(mkdirSync);
 
-import { getCommits, getDefaultBranch, getStatus, getUncommittedStatus } from './git';
+import { createWorktree, getCommits, getDefaultBranch, getStatus, getUncommittedStatus } from './git';
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -90,18 +91,99 @@ describe('getCommits', () => {
 });
 
 describe('getDefaultBranch', () => {
-	it('returns the current branch name', () => {
-		mockedExecSync.mockReturnValue('develop\n');
+	it('returns "main" when main branch exists', () => {
+		// git rev-parse --verify refs/heads/main succeeds
+		mockedExecSync.mockReturnValueOnce('sha\n');
+
+		expect(getDefaultBranch()).toBe('main');
+	});
+
+	it('returns "master" when main does not exist but master does', () => {
+		mockedExecSync
+			// git rev-parse --verify refs/heads/main fails
+			.mockImplementationOnce(() => {
+				throw new Error('not a valid ref');
+			})
+			// git rev-parse --verify refs/heads/master succeeds
+			.mockReturnValueOnce('sha\n');
+
+		expect(getDefaultBranch()).toBe('master');
+	});
+
+	it('falls back to HEAD when neither main nor master exist', () => {
+		mockedExecSync
+			// main check fails
+			.mockImplementationOnce(() => {
+				throw new Error('not a valid ref');
+			})
+			// master check fails
+			.mockImplementationOnce(() => {
+				throw new Error('not a valid ref');
+			})
+			// git symbolic-ref --short HEAD succeeds
+			.mockReturnValueOnce('develop\n');
 
 		expect(getDefaultBranch()).toBe('develop');
 	});
 
-	it('falls back to "main" on error', () => {
+	it('falls back to "main" when everything fails', () => {
 		mockedExecSync.mockImplementation(() => {
 			throw new Error('not a git repo');
 		});
 
 		expect(getDefaultBranch()).toBe('main');
+	});
+});
+
+describe('createWorktree', () => {
+	it('creates worktree branching from the default branch', () => {
+		mockedExistsSync.mockReturnValue(false);
+		// Call sequence:
+		// 1. getDefaultBranch -> git rev-parse --verify refs/heads/main (succeeds)
+		// 2. git worktree add -b ...
+		mockedExecSync
+			.mockReturnValueOnce('sha\n') // main exists
+			.mockReturnValueOnce(''); // worktree add
+
+		const result = createWorktree('fix-bug');
+
+		expect(result).toEqual({
+			branch: 'servitor/fix-bug',
+			worktreePath: '/fake/worktrees/test-project/fix-bug'
+		});
+		// Verify mkdirSync was called for parent directory
+		expect(mockedMkdirSync).toHaveBeenCalledWith('/fake/worktrees/test-project', {
+			recursive: true
+		});
+		// Verify the worktree add command includes the base branch
+		expect(mockedExecSync).toHaveBeenCalledWith(
+			expect.stringContaining('"main"'),
+			expect.objectContaining({ cwd: '/fake/repo' })
+		);
+	});
+
+	it('uses master as base when main does not exist', () => {
+		mockedExistsSync.mockReturnValue(false);
+		mockedExecSync
+			.mockImplementationOnce(() => {
+				throw new Error('not a valid ref');
+			}) // main doesn't exist
+			.mockReturnValueOnce('sha\n') // master exists
+			.mockReturnValueOnce(''); // worktree add
+
+		const result = createWorktree('fix-bug');
+
+		expect(result.branch).toBe('servitor/fix-bug');
+		expect(mockedExecSync).toHaveBeenLastCalledWith(
+			expect.stringContaining('"master"'),
+			expect.objectContaining({ cwd: '/fake/repo' })
+		);
+	});
+
+	it('throws when worktree path already exists', () => {
+		mockedExistsSync.mockReturnValue(true);
+
+		expect(() => createWorktree('fix-bug')).toThrow('Worktree path already exists');
 	});
 });
 
