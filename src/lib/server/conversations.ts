@@ -50,6 +50,7 @@ export interface AskUserAnswerData {
 export interface Message {
 	role: 'user' | 'assistant' | 'system' | 'tool';
 	content: string;
+	thinking?: string;
 	toolInvocations?: ToolInvocation[];
 	askUserAnswers?: AskUserAnswerData;
 	ts: string;

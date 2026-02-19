@@ -41,12 +41,13 @@ export async function POST({ params, request }) {
 		cwd: ws.worktreePath,
 		sessionId: conv.agentSessionId,
 		executionMode: conv.executionMode ?? 'build',
-		onComplete: (text, sessionId, toolInvocations) => {
+		onComplete: (text, sessionId, toolInvocations, thinking) => {
 			// Persist assistant message
-			if (text) {
+			if (text || thinking) {
 				appendMessage(ws.worktreePath, {
 					role: 'assistant',
 					content: text,
+					thinking: thinking || undefined,
 					toolInvocations: toolInvocations.length > 0 ? toolInvocations : undefined,
 					ts: new Date().toISOString()
 				});

@@ -29,26 +29,56 @@
 	let eventSource: EventSource | null = null;
 
 	// Typewriter: progressively reveal streamed text word by word
-	let revealedText = $state('');
-	let targetText = $state('');
-	let revealTimer: ReturnType<typeof setInterval> | null = null;
+	function createTypewriter(pulseBit = true) {
+		let revealed = $state('');
+		let target = $state('');
+		let timer: ReturnType<typeof setInterval> | null = null;
 
-	function startRevealing() {
-		if (revealTimer) return;
-		revealTimer = setInterval(() => {
-			if (revealedText.length >= targetText.length) {
-				if (revealTimer) clearInterval(revealTimer);
-				revealTimer = null;
-				return;
+		function start() {
+			if (timer) return;
+			timer = setInterval(() => {
+				if (revealed.length >= target.length) {
+					if (timer) clearInterval(timer);
+					timer = null;
+					return;
+				}
+				let next = target.indexOf(' ', revealed.length);
+				if (next === -1) next = target.length;
+				else next++;
+				revealed = target.slice(0, next);
+				if (pulseBit) activity.pulse();
+			}, 20);
+		}
+
+		function setTarget(text: string) {
+			if (text !== target) {
+				target = text;
+				start();
 			}
-			// Reveal next word (find next space or end)
-			let next = targetText.indexOf(' ', revealedText.length);
-			if (next === -1) next = targetText.length;
-			else next++; // include the space
-			revealedText = targetText.slice(0, next);
-			activity.pulse();
-		}, 20);
+		}
+
+		function flush() {
+			if (timer) { clearInterval(timer); timer = null; }
+			revealed = target;
+		}
+
+		function reset() {
+			if (timer) { clearInterval(timer); timer = null; }
+			target = '';
+			revealed = '';
+		}
+
+		return {
+			get revealed() { return revealed; },
+			get target() { return target; },
+			setTarget,
+			flush,
+			reset
+		};
 	}
+
+	const textTypewriter = createTypewriter(true);
+	const thinkingTypewriter = createTypewriter(false);
 
 	// Streaming state — built up as SSE events arrive
 	let streamingParts: Array<
@@ -77,6 +107,7 @@
 	let localMessages: Array<{
 		role: string;
 		content: string;
+		thinking?: string;
 		toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
 		askUserAnswers?: { questions: AskUserQuestion[]; answers: Record<string, string> };
 		ts: string;
@@ -87,25 +118,19 @@
 		localMessages = [...data.messages];
 	});
 
-	// Feed streaming text into the typewriter
+	// Feed streaming text and thinking into their typewriters
 	$effect(() => {
 		const textParts = streamingParts.filter((p) => p.type === 'text');
 		const latest = textParts.length > 0 ? textParts[textParts.length - 1] : null;
-		const newTarget = latest?.text ?? '';
+		textTypewriter.setTarget(latest?.text ?? '');
 
-		if (newTarget !== targetText) {
-			targetText = newTarget;
-			startRevealing();
-		}
+		const thinkingParts = streamingParts.filter((p) => p.type === 'thinking');
+		const latestThinking = thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null;
+		thinkingTypewriter.setTarget(latestThinking?.text ?? '');
 
-		// Reset when streaming clears
 		if (streamingParts.length === 0) {
-			targetText = '';
-			revealedText = '';
-			if (revealTimer) {
-				clearInterval(revealTimer);
-				revealTimer = null;
-			}
+			textTypewriter.reset();
+			thinkingTypewriter.reset();
 		}
 	});
 
@@ -265,12 +290,9 @@
 			processAlive = false;
 			activity.setBusy(false);
 
-			// Instantly finish the typewriter so there's no gap
-			if (revealTimer) {
-				clearInterval(revealTimer);
-				revealTimer = null;
-			}
-			revealedText = targetText;
+			// Instantly finish typewriters so there's no gap
+			textTypewriter.flush();
+			thinkingTypewriter.flush();
 
 			// Load persisted messages first, THEN clear streaming parts.
 			// This prevents a flash where neither streaming nor persisted text is visible.
@@ -283,12 +305,9 @@
 			processAlive = false;
 			activity.setBusy(false);
 
-			// Instantly finish the typewriter
-			if (revealTimer) {
-				clearInterval(revealTimer);
-				revealTimer = null;
-			}
-			revealedText = targetText;
+			// Instantly finish typewriters
+			textTypewriter.flush();
+			thinkingTypewriter.flush();
 
 			// Preserve streaming parts if there's a pending interaction
 			const hasPendingInteraction = streamingParts.some(
@@ -763,6 +782,20 @@
 									{msg.content}
 								</div>
 							{:else}
+								{#if msg.thinking}
+									<details class="group mb-2">
+										<summary class="flex cursor-pointer items-center gap-1.5 py-1">
+											<div class="h-2 w-2 rounded-full bg-zinc-700/50"></div>
+											<div class="h-1.5 w-1.5 rounded-full bg-zinc-700/30"></div>
+											<span class="text-xs text-zinc-600 group-open:hidden">💭</span>
+										</summary>
+										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
+											<div class="text-sm text-zinc-500">
+												<Markdown content={msg.thinking} />
+											</div>
+										</div>
+									</details>
+								{/if}
 								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
 								</div>
@@ -772,19 +805,18 @@
 
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
-						{@const textParts = streamingParts.filter((p) => p.type === 'text')}
-						{@const latestText = textParts.length > 0 ? textParts[textParts.length - 1] : null}
-						{@const thinkingParts = streamingParts.filter((p) => p.type === 'thinking')}
-						{@const latestThinking = thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null}
 						<div class="space-y-3">
-							{#if latestThinking}
-								<details class="text-sm">
-									<summary
-										class="cursor-pointer text-amber-700 hover:text-amber-600"
-										>[thinking]</summary
-									>
-									<div class="mt-1 whitespace-pre-wrap pl-3 text-xs text-zinc-600">
-										{latestThinking.text}
+							{#if thinkingTypewriter.revealed}
+								<details class="group">
+									<summary class="flex cursor-pointer items-center gap-1.5 py-1">
+										<div class="h-2 w-2 rounded-full bg-zinc-700/50"></div>
+										<div class="h-1.5 w-1.5 rounded-full bg-zinc-700/30"></div>
+										<span class="text-xs text-zinc-600 group-open:hidden">💭</span>
+									</summary>
+									<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
+										<div class="text-sm text-zinc-500">
+											<Markdown content={thinkingTypewriter.revealed} />
+										</div>
 									</div>
 								</details>
 							{/if}
@@ -920,9 +952,9 @@
 									</div>
 								{/if}
 							{/each}
-							{#if revealedText}
+							{#if textTypewriter.revealed}
 								<div class="text-sm text-zinc-300">
-									<Markdown content={revealedText} />
+									<Markdown content={textTypewriter.revealed} />
 								</div>
 							{/if}
 							{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}

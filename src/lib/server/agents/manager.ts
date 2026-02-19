@@ -24,8 +24,10 @@ interface ActiveConversation {
 	toolInvocations: ToolInvocation[];
 	/** Text accumulated during the current turn */
 	turnText: string;
+	/** Thinking text accumulated during the current turn */
+	turnThinking: string;
 	/** Callback for each completed turn — persists assistant message + session ID */
-	onComplete: ((text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void) | null;
+	onComplete: ((text: string, sessionId: string, toolInvocations: ToolInvocation[], thinking: string) => void) | null;
 	/** Last known session ID for resumption */
 	lastSessionId: string;
 	/** True while the agent is actively doing a turn (between send and message_complete/done) */
@@ -73,6 +75,7 @@ function getOrCreate(conversationId: string): ActiveConversation {
 			cwd: '',
 			toolInvocations: [],
 			turnText: '',
+			turnThinking: '',
 			onComplete: null,
 			lastSessionId: '',
 			busy: false
@@ -103,7 +106,7 @@ export function sendMessage(
 		cwd: string;
 		sessionId?: string;
 		executionMode: ExecutionMode;
-		onComplete: (text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void;
+		onComplete: (text: string, sessionId: string, toolInvocations: ToolInvocation[], thinking: string) => void;
 	}
 ): void {
 	const conv = getOrCreate(conversationId);
@@ -116,6 +119,7 @@ export function sendMessage(
 	// Reset turn state for this new turn
 	conv.toolInvocations = [];
 	conv.turnText = '';
+	conv.turnThinking = '';
 
 	// Update the onComplete callback (the messages endpoint passes a fresh one each time
 	// that closes over the correct conversation row)
@@ -155,9 +159,12 @@ export function sendMessage(
 	conv.process = process;
 
 	process.onEvent((event) => {
-		// Accumulate text for the current turn
+		// Accumulate text and thinking for the current turn
 		if (event.type === 'text_delta') {
-			conv.turnText += event.text;
+			conv.turnText = event.text; // text_delta contains full accumulated text, not a delta
+		}
+		if (event.type === 'thinking') {
+			conv.turnThinking = event.text; // accumulated (not delta)
 		}
 
 		// Kill the process immediately when a blocking tool is detected.
@@ -171,9 +178,10 @@ export function sendMessage(
 
 			// Persist partial assistant message if there's accumulated content
 			if ((conv.turnText || conv.toolInvocations.length > 0) && conv.onComplete) {
-				conv.onComplete(conv.turnText, event.sessionId, conv.toolInvocations);
+				conv.onComplete(conv.turnText, event.sessionId, conv.toolInvocations, conv.turnThinking);
 				conv.toolInvocations = [];
 				conv.turnText = '';
+				conv.turnThinking = '';
 			}
 
 			// Persist the pending interaction so it survives page reloads
@@ -234,9 +242,12 @@ export function sendMessage(
 			broadcastStatus(conversationId, false);
 			conv.lastSessionId = event.sessionId || conv.lastSessionId;
 			if (conv.onComplete) {
-				conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
+				// The result event's text field may be empty — fall back to accumulated turnText
+				const finalText = event.text || conv.turnText;
+				conv.onComplete(finalText, event.sessionId, conv.toolInvocations, conv.turnThinking);
 				conv.toolInvocations = [];
 				conv.turnText = '';
+				conv.turnThinking = '';
 			}
 		}
 
