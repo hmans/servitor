@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { workspaceStatus } from '$lib/stores/workspaceStatus.svelte';
 
 	type Workspace = {
 		name: string;
@@ -26,6 +27,11 @@
 					? 'text-zinc-100'
 					: 'text-zinc-400 hover:text-zinc-200'}"
 			>
+					<span
+					class="inline-block h-1.5 w-1.5 shrink-0 rounded-full {workspaceStatus.isBusy(ws.name)
+						? 'bg-pink-500 animate-pulse'
+						: 'bg-zinc-700'}"
+				></span>
 				<span class="truncate">{ws.name}</span>
 				<span class="shrink-0 font-mono text-xs text-zinc-600">{ws.branch}</span>
 			</a>

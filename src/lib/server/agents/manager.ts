@@ -38,6 +38,31 @@ const adapters: Record<string, AgentAdapter> = {
 
 const active = new Map<string, ActiveConversation>();
 
+// Global status listeners — notified when any workspace's busy state changes
+type GlobalStatusListener = (event: { workspace: string; busy: boolean }) => void;
+const globalStatusListeners = new Set<GlobalStatusListener>();
+
+function broadcastStatus(workspace: string, busy: boolean) {
+	for (const fn of globalStatusListeners) {
+		fn({ workspace, busy });
+	}
+}
+
+export function subscribeGlobalStatus(listener: GlobalStatusListener): () => void {
+	globalStatusListeners.add(listener);
+	return () => {
+		globalStatusListeners.delete(listener);
+	};
+}
+
+export function getAllStatuses(): Record<string, boolean> {
+	const statuses: Record<string, boolean> = {};
+	for (const [id, conv] of active) {
+		statuses[id] = conv.busy;
+	}
+	return statuses;
+}
+
 function getOrCreate(conversationId: string): ActiveConversation {
 	let conv = active.get(conversationId);
 	if (!conv) {
@@ -102,6 +127,7 @@ export function sendMessage(
 	}
 
 	conv.busy = true;
+	broadcastStatus(conversationId, true);
 
 	// If we already have a running process, just send the message into it
 	if (conv.process) {
@@ -186,6 +212,8 @@ export function sendMessage(
 			}
 			// Then kill the process
 			conv.process?.kill();
+			conv.process = null;
+			broadcastStatus(conversationId, false);
 			return;
 		}
 
@@ -203,6 +231,7 @@ export function sendMessage(
 
 		if (event.type === 'message_complete') {
 			conv.busy = false;
+			broadcastStatus(conversationId, false);
 			conv.lastSessionId = event.sessionId || conv.lastSessionId;
 			if (conv.onComplete) {
 				conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
@@ -214,6 +243,7 @@ export function sendMessage(
 		if (event.type === 'done') {
 			conv.busy = false;
 			conv.process = null;
+			broadcastStatus(conversationId, false);
 		}
 	});
 
@@ -246,6 +276,7 @@ export function killProcess(conversationId: string): void {
 	if (conv?.process) {
 		conv.process.kill();
 		conv.process = null;
+		broadcastStatus(conversationId, false);
 	}
 }
 

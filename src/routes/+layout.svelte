@@ -3,10 +3,16 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
+	import { workspaceStatus } from '$lib/stores/workspaceStatus.svelte';
 
 	let { data, children } = $props();
 
 	let sidebarWidth = $state(256);
+
+	$effect(() => {
+		workspaceStatus.connect();
+		return () => workspaceStatus.disconnect();
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
