@@ -230,6 +230,14 @@ function summarizeToolInput(tool: string, input?: Record<string, unknown>): stri
 			return (input.query as string) ?? '';
 		case 'Task':
 			return (input.description as string) ?? '';
+		case 'TodoWrite':
+		case 'TaskCreate':
+			return (input.subject as string) ?? '';
+		case 'TaskUpdate':
+			return `${(input.taskId as string) ?? ''} → ${(input.status as string) ?? ''}`;
+		case 'TaskGet':
+		case 'TaskList':
+			return (input.taskId as string) ?? '';
 		default:
 			return '';
 	}
