@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { ClaudeCodeAdapter } from './claude-code';
-import type { AgentAdapter, AgentEvent, AgentProcess, ExecutionMode } from './types';
+import type { AgentAdapter, AgentEvent, AgentProcess, ExecutionMode, MessageContent } from './types';
 import { setPendingInteraction, type ToolInvocation } from '$lib/server/conversations';
 
 export type { ToolInvocation };
@@ -97,7 +97,7 @@ export function sendMessage(
 	conversationId: string,
 	opts: {
 		messageId: string;
-		content: string;
+		content: MessageContent;
 		agentType: string;
 		cwd: string;
 		sessionId?: string;
@@ -107,9 +107,12 @@ export function sendMessage(
 ): void {
 	const conv = getOrCreate(conversationId);
 
-	// Emit user message to all subscribers immediately
+	// Emit user message text to all subscribers immediately
+	const textContent = typeof opts.content === 'string'
+		? opts.content
+		: opts.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n');
 	for (const fn of conv.listeners) {
-		fn({ type: 'user_message', messageId: opts.messageId, content: opts.content });
+		fn({ type: 'user_message', messageId: opts.messageId, content: textContent });
 	}
 
 	// Reset turn state for this new turn

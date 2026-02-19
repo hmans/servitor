@@ -9,9 +9,13 @@
 	import ServitorBit from '$lib/components/ServitorBit.svelte';
 
 	import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
+	import type { Attachment } from '$lib/server/conversations';
 	import { activity } from '$lib/stores/activity.svelte';
 
 	let { data } = $props();
+
+	const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+	const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 	let infoPaneWidth = $state(400);
 	let input = $state('');
@@ -19,6 +23,9 @@
 	let processAlive = $state(false);
 	let errorMessage = $state('');
 	let executionMode: ExecutionMode = $state('build');
+	let pendingAttachments: Array<{ file: File; preview: string; filename: string; mediaType: string }> = $state([]);
+	let fileInputEl: HTMLInputElement | undefined = $state();
+	let dragOver = $state(false);
 
 	// Sync execution mode from server data
 	$effect(() => {
@@ -112,6 +119,9 @@
 		thinking?: string;
 		toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
 		askUserAnswers?: { questions: AskUserQuestion[]; answers: Record<string, string> };
+		attachments?: Attachment[];
+		/** Optimistic preview URLs (object URLs) keyed by attachment index */
+		_previewUrls?: string[];
 		ts: string;
 	}> = $state([]);
 
@@ -359,8 +369,80 @@
 		};
 	});
 
+	function addAttachment(file: File) {
+		if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+			errorMessage = `Unsupported image type: ${file.type}`;
+			return;
+		}
+		if (file.size > MAX_IMAGE_SIZE) {
+			errorMessage = `Image too large (max 10MB): ${file.name}`;
+			return;
+		}
+		const preview = URL.createObjectURL(file);
+		pendingAttachments = [...pendingAttachments, { file, preview, filename: file.name, mediaType: file.type }];
+	}
+
+	function removeAttachment(index: number) {
+		URL.revokeObjectURL(pendingAttachments[index].preview);
+		pendingAttachments = pendingAttachments.filter((_, i) => i !== index);
+	}
+
+	function handleFileSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (!input.files) return;
+		for (const file of input.files) {
+			addAttachment(file);
+		}
+		input.value = '';
+	}
+
+	function handlePaste(e: ClipboardEvent) {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+		for (const item of items) {
+			if (item.type.startsWith('image/')) {
+				e.preventDefault();
+				const file = item.getAsFile();
+				if (file) addAttachment(file);
+			}
+		}
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragOver = false;
+		const files = e.dataTransfer?.files;
+		if (!files) return;
+		for (const file of files) {
+			if (file.type.startsWith('image/')) {
+				addAttachment(file);
+			}
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		dragOver = true;
+	}
+
+	function handleDragLeave() {
+		dragOver = false;
+	}
+
+	function fileToBase64(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const result = reader.result as string;
+				resolve(result.split(',')[1]);
+			};
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+	}
+
 	async function sendMessage() {
-		if (!input.trim()) return;
+		if (!input.trim() && pendingAttachments.length === 0) return;
 
 		const content = input.trim();
 		input = '';
@@ -368,13 +450,48 @@
 		activity.setBusy(true);
 		errorMessage = '';
 
-		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
+		// Convert pending attachments to base64 for transport
+		let attachmentsPayload: Array<{ filename: string; mediaType: string; data: string }> | undefined;
+		const previewUrls: string[] = [];
+		if (pendingAttachments.length > 0) {
+			attachmentsPayload = await Promise.all(
+				pendingAttachments.map(async (a) => ({
+					filename: a.filename,
+					mediaType: a.mediaType,
+					data: await fileToBase64(a.file)
+				}))
+			);
+			// Collect preview URLs for optimistic rendering (don't revoke yet)
+			for (const a of pendingAttachments) {
+				previewUrls.push(a.preview);
+			}
+			pendingAttachments = [];
+		}
+
+		localMessages = [
+			...localMessages,
+			{
+				role: 'user',
+				content,
+				attachments: attachmentsPayload?.map((a) => ({
+					id: '',
+					filename: a.filename,
+					mediaType: a.mediaType,
+					path: ''
+				})),
+				_previewUrls: previewUrls.length > 0 ? previewUrls : undefined,
+				ts: new Date().toISOString()
+			}
+		];
 
 		try {
+			const body: Record<string, unknown> = { content };
+			if (attachmentsPayload) body.attachments = attachmentsPayload;
+
 			const res = await fetch(`/api/workspaces/${wsName}/messages`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content })
+				body: JSON.stringify(body)
 			});
 
 			if (!res.ok) {
@@ -383,6 +500,11 @@
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Network error';
+		}
+
+		// Revoke optimistic preview URLs (server data will take over after invalidateAll)
+		for (const url of previewUrls) {
+			URL.revokeObjectURL(url);
 		}
 	}
 
@@ -793,10 +915,34 @@
 									{/each}
 								</div>
 							{:else if msg.role === 'user'}
-								<div
-									class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white"
-								>
-									{msg.content}
+								<div>
+									{#if msg.content}
+										<div
+											class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white"
+										>
+											{msg.content}
+										</div>
+									{/if}
+									{#if msg.attachments?.length}
+										<div class="mt-1 flex gap-2">
+											{#each msg.attachments as att, attIdx}
+												{@const src = msg._previewUrls?.[attIdx] || (att.id ? `/api/workspaces/${wsName}/attachments/${att.id}` : '')}
+												{#if src}
+													<a
+														href={src}
+														target="_blank"
+														class="block h-20 w-20 overflow-hidden rounded border border-zinc-700 transition-colors hover:border-pink-500"
+													>
+														<img
+															{src}
+															alt={att.filename}
+															class="h-full w-full object-cover"
+														/>
+													</a>
+												{/if}
+											{/each}
+										</div>
+									{/if}
 								</div>
 							{:else}
 								{#if msg.thinking}
@@ -1009,11 +1155,36 @@
 		{/if}
 
 		<!-- Input -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="pt-3 {executionMode === 'plan'
 				? 'border-t border-amber-500/30'
-				: 'border-t border-zinc-800'}"
+				: 'border-t border-zinc-800'} {dragOver ? 'ring-1 ring-pink-500/50 rounded' : ''}"
+			ondrop={handleDrop}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
 		>
+			{#if pendingAttachments.length > 0}
+				<div class="mb-2 flex gap-2 pl-16">
+					{#each pendingAttachments as att, i}
+						<div class="group relative h-16 w-16 overflow-hidden rounded border border-zinc-700">
+							<img src={att.preview} alt={att.filename} class="h-full w-full object-cover" />
+							<button
+								onclick={() => removeAttachment(i)}
+								class="absolute -right-0.5 -top-0.5 hidden h-4 w-4 rounded-full bg-red-600 text-[10px] leading-none text-white group-hover:block"
+							>x</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+			<input
+				type="file"
+				accept={ACCEPTED_IMAGE_TYPES.join(',')}
+				multiple
+				class="hidden"
+				bind:this={fileInputEl}
+				onchange={handleFileSelect}
+			/>
 			<div class="flex items-center gap-2">
 				<div class="h-14 w-14 shrink-0 overflow-visible">
 					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} toolEmojiId={activity.toolEmojiId} toolEmoji={activity.toolEmoji} onclick={() => composerEl?.focus()} />
@@ -1022,10 +1193,18 @@
 					bind:this={composerEl}
 					bind:value={input}
 					onkeydown={handleKeydown}
+					onpaste={handlePaste}
 					placeholder=""
 					rows="1"
 					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
+				<button
+					onclick={() => fileInputEl?.click()}
+					class="text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+					title="Attach image"
+				>
+					[img]
+				</button>
 				{#if processAlive}
 					<button
 						onclick={stopProcess}
@@ -1036,7 +1215,7 @@
 				{:else}
 					<button
 						onclick={sendMessage}
-						disabled={!input.trim()}
+						disabled={!input.trim() && pendingAttachments.length === 0}
 						class="text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
 					>
 						[send]

@@ -1,5 +1,5 @@
 import { spawn, execSync } from 'child_process';
-import type { AgentAdapter, AgentProcess, AgentStartConfig, AgentEvent } from './types';
+import type { AgentAdapter, AgentProcess, AgentStartConfig, AgentEvent, MessageContent } from './types';
 import { parseClaudeEvent } from './parse-events';
 
 // Resolve the full path to claude at module load time
@@ -106,7 +106,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		});
 
 		return {
-			send(message: string) {
+			send(message: MessageContent) {
 				const payload = JSON.stringify({
 					type: 'user',
 					message: { role: 'user', content: message }

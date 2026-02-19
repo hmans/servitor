@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'fs';
+import { randomUUID } from 'crypto';
 import { join } from 'path';
 import type { ExecutionMode } from './agents/types';
 
@@ -47,12 +48,21 @@ export interface AskUserAnswerData {
 	answers: Record<string, string>;
 }
 
+export interface Attachment {
+	id: string;
+	filename: string;
+	mediaType: string;
+	/** Relative path from conversation dir to the attachment file */
+	path: string;
+}
+
 export interface Message {
 	role: 'user' | 'assistant' | 'system' | 'tool';
 	content: string;
 	thinking?: string;
 	toolInvocations?: ToolInvocation[];
 	askUserAnswers?: AskUserAnswerData;
+	attachments?: Attachment[];
 	ts: string;
 }
 
@@ -157,4 +167,32 @@ export function clearPendingInteraction(worktreePath: string): void {
 
 	const { pendingInteraction: _, ...rest } = meta;
 	writeFileSync(metaPath(worktreePath), JSON.stringify(rest, null, '\t') + '\n');
+}
+
+/** Save a base64-encoded attachment to disk, return metadata for JSONL storage. */
+export function saveAttachment(
+	worktreePath: string,
+	filename: string,
+	mediaType: string,
+	base64Data: string
+): Attachment {
+	const id = randomUUID();
+	const ext = filename.split('.').pop() || 'bin';
+	const storedName = `${id}.${ext}`;
+	const relPath = `attachments/${storedName}`;
+	const absDir = join(conversationDir(worktreePath), 'attachments');
+	mkdirSync(absDir, { recursive: true });
+	writeFileSync(join(absDir, storedName), Buffer.from(base64Data, 'base64'));
+	return { id, filename, mediaType, path: relPath };
+}
+
+/** Read an attachment file back as base64. */
+export function readAttachmentBase64(worktreePath: string, attachment: Attachment): string {
+	const absPath = join(conversationDir(worktreePath), attachment.path);
+	return readFileSync(absPath).toString('base64');
+}
+
+/** Get the absolute filesystem path for an attachment. */
+export function getAttachmentAbsPath(worktreePath: string, attachment: Attachment): string {
+	return join(conversationDir(worktreePath), attachment.path);
 }

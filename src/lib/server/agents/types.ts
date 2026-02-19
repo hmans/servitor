@@ -32,9 +32,15 @@ export type AgentEvent =
 	| { type: 'error'; message: string }
 	| { type: 'done'; sessionId: string };
 
+export type ContentBlock =
+	| { type: 'text'; text: string }
+	| { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+
+export type MessageContent = string | ContentBlock[];
+
 export interface AgentProcess {
 	/** Send a user message into the running process */
-	send(message: string): void;
+	send(message: MessageContent): void;
 	/** Send a tool result back to the running process */
 	sendToolResult(toolUseId: string, result: string): void;
 	onEvent(callback: (event: AgentEvent) => void): void;
