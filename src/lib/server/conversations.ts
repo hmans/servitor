@@ -14,10 +14,21 @@ export interface ToolInvocation {
 	input: string;
 }
 
+export interface AskUserAnswerData {
+	questions: Array<{
+		question: string;
+		header: string;
+		options: Array<{ label: string; description: string }>;
+		multiSelect: boolean;
+	}>;
+	answers: Record<string, string>;
+}
+
 export interface Message {
 	role: 'user' | 'assistant' | 'system' | 'tool';
 	content: string;
 	toolInvocations?: ToolInvocation[];
+	askUserAnswers?: AskUserAnswerData;
 	ts: string;
 }
 

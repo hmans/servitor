@@ -16,7 +16,11 @@ export async function POST({ params, request }) {
 	const ts = new Date().toISOString();
 
 	// Persist user message
-	appendMessage(ws.worktreePath, { role: 'user', content, ts });
+	const msg: Parameters<typeof appendMessage>[1] = { role: 'user', content, ts };
+	if (body.askUserAnswers) {
+		msg.askUserAnswers = body.askUserAnswers;
+	}
+	appendMessage(ws.worktreePath, msg);
 
 	// Agent manager key — just the workspace name
 	const managerKey = params.name;
@@ -27,6 +31,7 @@ export async function POST({ params, request }) {
 		content,
 		agentType: conv.agentType,
 		cwd: ws.worktreePath,
+		sessionId: conv.agentSessionId,
 		onComplete: (text, sessionId, toolInvocations) => {
 			// Persist assistant message
 			if (text) {

@@ -24,7 +24,7 @@
 	let streamingParts: Array<
 		| { type: 'text'; text: string }
 		| { type: 'tool_use'; tool: string; input: string; toolUseId: string }
-		| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[]; answered: boolean }
+		| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[]; answered: boolean; submittedAnswers?: Record<string, string> }
 	> = $state([]);
 
 	// Local copy of messages for optimistic updates
@@ -32,6 +32,7 @@
 		role: string;
 		content: string;
 		toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
+		askUserAnswers?: { questions: AskUserQuestion[]; answers: Record<string, string> };
 		ts: string;
 	}> = $state([]);
 
@@ -97,7 +98,7 @@
 		es.addEventListener('ask_user', (e) => {
 			const event = JSON.parse(e.data);
 			console.log('[claude] ask_user', event);
-			processAlive = true;
+			// Process will be killed by the server — don't set processAlive
 			sending = false;
 			streamingParts = [
 				...streamingParts,
@@ -119,7 +120,13 @@
 			console.log('[claude] done (process exited)');
 			sending = false;
 			processAlive = false;
-			streamingParts = [];
+			// Preserve streaming parts if there's an unanswered question
+			const hasUnansweredQuestion = streamingParts.some(
+				(p) => p.type === 'ask_user' && !p.answered
+			);
+			if (!hasUnansweredQuestion) {
+				streamingParts = [];
+			}
 			await invalidateAll();
 			scrollToBottom();
 		});
@@ -176,21 +183,62 @@
 		}
 	}
 
-	async function answerQuestion(toolUseId: string, answers: Record<string, string>) {
+	// Pending answers for multi-question forms: toolUseId -> { questionText -> selectedLabel }
+	let pendingAnswers: Record<string, Record<string, string>> = $state({});
+
+	function selectOption(toolUseId: string, questionText: string, label: string, questions: AskUserQuestion[]) {
+		if (!pendingAnswers[toolUseId]) {
+			pendingAnswers[toolUseId] = {};
+		}
+		pendingAnswers[toolUseId][questionText] = label;
+
+		// For single-question invocations, submit immediately on click
+		if (questions.length === 1) {
+			submitAnswers(toolUseId, questions);
+		}
+	}
+
+	function formatAnswer(questions: AskUserQuestion[], answers: Record<string, string>): string {
+		const parts: string[] = [];
+		for (const q of questions) {
+			const answer = answers[q.question];
+			if (answer) {
+				parts.push(`For "${q.question}", I selected: ${answer}`);
+			}
+		}
+		return parts.join('\n\n');
+	}
+
+	async function submitAnswers(toolUseId: string, questions: AskUserQuestion[]) {
+		const answers = pendingAnswers[toolUseId] ?? {};
+		const content = formatAnswer(questions, answers);
+		if (!content) return;
+
+		// Clear streaming parts — the persisted message will carry the rich UI
+		streamingParts = [];
+		delete pendingAnswers[toolUseId];
+
+		// Build the structured data for persistence
+		const askUserAnswers = { questions, answers };
+
+		// Add as a local message immediately
+		sending = true;
+		localMessages = [
+			...localMessages,
+			{ role: 'user', content, askUserAnswers, ts: new Date().toISOString() }
+		];
+		scrollToBottom();
+
 		try {
-			const res = await fetch(`/api/workspaces/${wsName}/answer`, {
+			const res = await fetch(`/api/workspaces/${wsName}/messages`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ toolUseId, answers })
+				body: JSON.stringify({ content, askUserAnswers })
 			});
 
-			if (res.ok) {
-				// Mark the question as answered
-				streamingParts = streamingParts.map((part) =>
-					part.type === 'ask_user' && part.toolUseId === toolUseId
-						? { ...part, answered: true }
-						: part
-				);
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ message: 'Failed to send answer' }));
+				errorMessage = err.message ?? 'Failed to send answer';
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to send answer';
@@ -245,7 +293,28 @@
 			<div class="space-y-6 leading-[1.8]">
 				{#each localMessages as msg, i (i)}
 					<div class="group">
-						{#if msg.role === 'user'}
+						{#if msg.role === 'user' && msg.askUserAnswers}
+							<div class="border border-zinc-700 rounded p-4">
+								{#each msg.askUserAnswers.questions as q}
+									<div class="mb-4 last:mb-0">
+										<div class="text-xs text-amber-600 uppercase tracking-wide mb-1">{q.header}</div>
+										<div class="text-sm text-zinc-200 mb-3">{q.question}</div>
+										<div class="flex flex-wrap gap-2">
+											{#each q.options as option}
+												{@const wasSelected = msg.askUserAnswers?.answers[q.question] === option.label}
+												<span
+													class="rounded border px-3 py-1.5 text-sm {wasSelected
+														? 'border-pink-500 bg-pink-500/20 text-pink-400'
+														: 'border-zinc-800 text-zinc-700'}"
+												>
+													{option.label}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{:else if msg.role === 'user'}
 							<div class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white">{msg.content}</div>
 						{:else}
 							{#if msg.toolInvocations}
@@ -287,17 +356,32 @@
 							{:else if part.type === 'ask_user'}
 								<div class="my-3 border border-zinc-700 rounded p-4">
 									{#each part.questions as q}
-										<div class="mb-3 last:mb-0">
+										<div class="mb-4 last:mb-0">
 											<div class="text-xs text-amber-600 uppercase tracking-wide mb-1">{q.header}</div>
 											<div class="text-sm text-zinc-200 mb-3">{q.question}</div>
 											{#if part.answered}
-												<div class="text-xs text-zinc-500 italic">Answered</div>
+												<div class="flex flex-wrap gap-2">
+													{#each q.options as option}
+														{@const wasSelected = part.submittedAnswers?.[q.question] === option.label}
+														<span
+															class="rounded border px-3 py-1.5 text-sm {wasSelected
+																? 'border-pink-500 bg-pink-500/20 text-pink-400'
+																: 'border-zinc-800 text-zinc-700'}"
+														>
+															{option.label}
+														</span>
+													{/each}
+												</div>
 											{:else}
 												<div class="flex flex-wrap gap-2">
 													{#each q.options as option}
+														{@const selected = pendingAnswers[part.toolUseId]?.[q.question] === option.label}
 														<button
-															onclick={() => answerQuestion(part.toolUseId, { [q.question]: option.label })}
-															class="rounded border border-zinc-600 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-pink-500 hover:text-pink-400"
+															onclick={() =>
+																selectOption(part.toolUseId, q.question, option.label, part.questions)}
+															class="rounded border px-3 py-1.5 text-sm transition-colors {selected
+																? 'border-pink-500 bg-pink-500/20 text-pink-400'
+																: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
 															title={option.description}
 														>
 															{option.label}
@@ -307,6 +391,23 @@
 											{/if}
 										</div>
 									{/each}
+									{#if !part.answered && part.questions.length > 1}
+										{@const answeredCount = Object.keys(pendingAnswers[part.toolUseId] ?? {}).length}
+										<div class="mt-4 flex items-center gap-3 border-t border-zinc-700/50 pt-3">
+											<button
+												onclick={() => submitAnswers(part.toolUseId, part.questions)}
+												disabled={answeredCount === 0}
+												class="rounded border border-pink-600 px-4 py-1.5 text-sm text-pink-400 transition-colors hover:bg-pink-500/20 disabled:opacity-30 disabled:cursor-not-allowed"
+											>
+												[submit {answeredCount}/{part.questions.length}]
+											</button>
+											<span class="text-xs text-zinc-600">
+												{answeredCount === part.questions.length
+													? 'All answered'
+													: `${part.questions.length - answeredCount} unanswered`}
+											</span>
+										</div>
+									{/if}
 								</div>
 							{/if}
 						{/each}

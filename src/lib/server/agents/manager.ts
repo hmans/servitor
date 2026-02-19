@@ -20,8 +20,12 @@ interface ActiveConversation {
 	cwd: string;
 	/** Tool calls accumulated during the current turn */
 	toolInvocations: ToolInvocation[];
+	/** Text accumulated during the current turn */
+	turnText: string;
 	/** Callback for each completed turn — persists assistant message + session ID */
 	onComplete: ((text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void) | null;
+	/** Last known session ID for resumption */
+	lastSessionId: string;
 }
 
 const adapters: Record<string, AgentAdapter> = {
@@ -33,7 +37,16 @@ const active = new Map<string, ActiveConversation>();
 function getOrCreate(conversationId: string): ActiveConversation {
 	let conv = active.get(conversationId);
 	if (!conv) {
-		conv = { process: null, listeners: new Set(), agentType: '', cwd: '', toolInvocations: [], onComplete: null };
+		conv = {
+			process: null,
+			listeners: new Set(),
+			agentType: '',
+			cwd: '',
+			toolInvocations: [],
+			turnText: '',
+			onComplete: null,
+			lastSessionId: ''
+		};
 		active.set(conversationId, conv);
 	}
 	return conv;
@@ -58,6 +71,7 @@ export function sendMessage(
 		content: string;
 		agentType: string;
 		cwd: string;
+		sessionId?: string;
 		onComplete: (text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void;
 	}
 ): void {
@@ -68,12 +82,18 @@ export function sendMessage(
 		fn({ type: 'user_message', messageId: opts.messageId, content: opts.content });
 	}
 
-	// Reset tool invocations for this new turn
+	// Reset turn state for this new turn
 	conv.toolInvocations = [];
+	conv.turnText = '';
 
 	// Update the onComplete callback (the messages endpoint passes a fresh one each time
 	// that closes over the correct conversation row)
 	conv.onComplete = opts.onComplete;
+
+	// Seed lastSessionId from conversation meta if we don't have one in memory
+	if (!conv.lastSessionId && opts.sessionId) {
+		conv.lastSessionId = opts.sessionId;
+	}
 
 	// If we already have a running process, just send the message into it
 	if (conv.process) {
@@ -93,10 +113,40 @@ export function sendMessage(
 	conv.agentType = opts.agentType;
 	conv.cwd = opts.cwd;
 
-	const process = adapter.start({ cwd: opts.cwd });
+	const process = adapter.start({
+		cwd: opts.cwd,
+		sessionId: conv.lastSessionId || undefined
+	});
 	conv.process = process;
 
 	process.onEvent((event) => {
+		// Accumulate text for the current turn
+		if (event.type === 'text_delta') {
+			conv.turnText += event.text;
+		}
+
+		// Kill the process immediately when AskUserQuestion is detected,
+		// before the CLI can auto-decline it. The user will answer via the UI
+		// and a new process will be spawned with --resume.
+		if (event.type === 'ask_user') {
+			conv.lastSessionId = event.sessionId;
+
+			// Persist partial assistant message if there's accumulated content
+			if ((conv.turnText || conv.toolInvocations.length > 0) && conv.onComplete) {
+				conv.onComplete(conv.turnText, event.sessionId, conv.toolInvocations);
+				conv.toolInvocations = [];
+				conv.turnText = '';
+			}
+
+			// Broadcast the ask_user event first so the UI can show the question
+			for (const fn of conv.listeners) {
+				fn(event);
+			}
+			// Then kill the process
+			conv.process?.kill();
+			return;
+		}
+
 		for (const fn of conv.listeners) {
 			fn(event);
 		}
@@ -109,9 +159,13 @@ export function sendMessage(
 			});
 		}
 
-		if (event.type === 'message_complete' && conv.onComplete) {
-			conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
-			conv.toolInvocations = [];
+		if (event.type === 'message_complete') {
+			conv.lastSessionId = event.sessionId || conv.lastSessionId;
+			if (conv.onComplete) {
+				conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
+				conv.toolInvocations = [];
+				conv.turnText = '';
+			}
 		}
 
 		if (event.type === 'done') {

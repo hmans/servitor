@@ -21,6 +21,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 			'--dangerously-skip-permissions'
 		];
 
+		if (config.sessionId) {
+			args.push('--resume', config.sessionId);
+		}
+
 		// Strip CLAUDECODE env var to allow nested sessions
 		const env = { ...process.env };
 		delete env.CLAUDECODE;
@@ -54,7 +58,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 						sessionId = parsed.session_id;
 					}
 
-					const events = parseClaudeEvent(parsed);
+					const events = parseClaudeEvent(parsed, sessionId);
 					for (const event of events) {
 						emit(event);
 					}
@@ -76,7 +80,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 				try {
 					const parsed = JSON.parse(buffer);
 					if (parsed.session_id) sessionId = parsed.session_id;
-					const events = parseClaudeEvent(parsed);
+					const events = parseClaudeEvent(parsed, sessionId);
 					for (const event of events) {
 						emit(event);
 					}
@@ -128,7 +132,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
  * - "assistant" — contains message.content with text/tool_use blocks
  * - "result" — final result with full text
  */
-function parseClaudeEvent(data: Record<string, unknown>): AgentEvent[] {
+function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): AgentEvent[] {
 	const events: AgentEvent[] = [];
 
 	if (data.type === 'assistant') {
@@ -152,7 +156,8 @@ function parseClaudeEvent(data: Record<string, unknown>): AgentEvent[] {
 					events.push({
 						type: 'ask_user',
 						toolUseId: block.id as string,
-						questions
+						questions,
+						sessionId
 					});
 				} else {
 					events.push({
