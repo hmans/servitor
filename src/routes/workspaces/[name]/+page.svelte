@@ -28,6 +28,28 @@
 	let composerEl: HTMLTextAreaElement | undefined = $state();
 	let eventSource: EventSource | null = null;
 
+	// Typewriter: progressively reveal streamed text word by word
+	let revealedText = $state('');
+	let targetText = $state('');
+	let revealTimer: ReturnType<typeof setInterval> | null = null;
+
+	function startRevealing() {
+		if (revealTimer) return;
+		revealTimer = setInterval(() => {
+			if (revealedText.length >= targetText.length) {
+				if (revealTimer) clearInterval(revealTimer);
+				revealTimer = null;
+				return;
+			}
+			// Reveal next word (find next space or end)
+			let next = targetText.indexOf(' ', revealedText.length);
+			if (next === -1) next = targetText.length;
+			else next++; // include the space
+			revealedText = targetText.slice(0, next);
+			activity.pulse();
+		}, 20);
+	}
+
 	// Streaming state — built up as SSE events arrive
 	let streamingParts: Array<
 		| { type: 'text'; text: string }
@@ -63,6 +85,28 @@
 	// Sync from server data when it changes
 	$effect(() => {
 		localMessages = [...data.messages];
+	});
+
+	// Feed streaming text into the typewriter
+	$effect(() => {
+		const textParts = streamingParts.filter((p) => p.type === 'text');
+		const latest = textParts.length > 0 ? textParts[textParts.length - 1] : null;
+		const newTarget = latest?.text ?? '';
+
+		if (newTarget !== targetText) {
+			targetText = newTarget;
+			startRevealing();
+		}
+
+		// Reset when streaming clears
+		if (streamingParts.length === 0) {
+			targetText = '';
+			revealedText = '';
+			if (revealTimer) {
+				clearInterval(revealTimer);
+				revealTimer = null;
+			}
+		}
 	});
 
 	// Auto-scroll: observe DOM mutations in the messages container
@@ -158,6 +202,7 @@
 			sending = false;
 			activity.setBusy(true);
 			activity.pulse();
+			activity.emitToolEmoji(event.tool);
 			streamingParts = [
 				...streamingParts,
 				{
@@ -214,24 +259,43 @@
 			sending = false;
 			processAlive = false;
 			activity.setBusy(false);
-			streamingParts = [];
+
+			// Instantly finish the typewriter so there's no gap
+			if (revealTimer) {
+				clearInterval(revealTimer);
+				revealTimer = null;
+			}
+			revealedText = targetText;
+
+			// Load persisted messages first, THEN clear streaming parts.
+			// This prevents a flash where neither streaming nor persisted text is visible.
 			await invalidateAll();
+			streamingParts = [];
 		});
 
 		es.addEventListener('done', async () => {
 			sending = false;
 			processAlive = false;
 			activity.setBusy(false);
+
+			// Instantly finish the typewriter
+			if (revealTimer) {
+				clearInterval(revealTimer);
+				revealTimer = null;
+			}
+			revealedText = targetText;
+
 			// Preserve streaming parts if there's a pending interaction
 			const hasPendingInteraction = streamingParts.some(
 				(p) =>
 					(p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') &&
 					!p.answered
 			);
+
+			await invalidateAll();
 			if (!hasPendingInteraction) {
 				streamingParts = [];
 			}
-			await invalidateAll();
 		});
 
 		es.addEventListener('error', (e) => {
@@ -514,16 +578,7 @@
 		}
 	}
 
-	/** Produce a compact summary like "Read x8, Bash x3, Grep x2" */
-	function summarizeTools(tools: Array<{ tool: string }>): string {
-		const counts = new Map<string, number>();
-		for (const t of tools) {
-			counts.set(t.tool, (counts.get(t.tool) ?? 0) + 1);
-		}
-		return [...counts.entries()]
-			.map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
-			.join(', ');
-	}
+
 
 	async function stopProcess() {
 		try {
@@ -673,7 +728,8 @@
 		</div>
 
 		<!-- Messages -->
-		<div bind:this={messagesEl} class="flex flex-1 flex-col justify-end overflow-auto py-3">
+		<div bind:this={messagesEl} class="flex-1 overflow-auto py-3">
+			<div class="flex min-h-full flex-col justify-end">
 			{#if localMessages.length === 0 && !sending}
 				<div class="flex h-full items-center justify-center">
 					<p class="text-sm text-zinc-600">Type a message to begin.</p>
@@ -702,25 +758,6 @@
 									{msg.content}
 								</div>
 							{:else}
-								{#if msg.toolInvocations && msg.toolInvocations.length > 0}
-								{@const toolSummary = summarizeTools(msg.toolInvocations)}
-								<details class="py-1 text-sm">
-									<summary class="flex cursor-pointer items-center gap-2 pl-3 text-zinc-600">
-										<span class="text-amber-600">[tools]</span>
-										<span class="text-zinc-500">{toolSummary}</span>
-									</summary>
-									<div class="mt-1 space-y-0.5 pl-6">
-										{#each msg.toolInvocations as t (t.toolUseId)}
-											<div class="flex items-center gap-2 text-xs text-zinc-700">
-												<span class="text-amber-700">{t.tool}</span>
-												{#if t.input}
-													<span class="truncate">{t.input}</span>
-												{/if}
-											</div>
-										{/each}
-									</div>
-								</details>
-								{/if}
 								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
 								</div>
@@ -730,8 +767,6 @@
 
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
-						{@const toolParts = streamingParts.filter((p) => p.type === 'tool_use')}
-						{@const lastTool = toolParts.length > 0 ? toolParts[toolParts.length - 1] : null}
 						{@const textParts = streamingParts.filter((p) => p.type === 'text')}
 						{@const latestText = textParts.length > 0 ? textParts[textParts.length - 1] : null}
 						{@const thinkingParts = streamingParts.filter((p) => p.type === 'thinking')}
@@ -749,18 +784,7 @@
 								</details>
 							{/if}
 							{#each streamingParts as part, i (i)}
-								{#if part.type === 'tool_use' && part === lastTool}
-									<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
-										<span class="text-amber-600">[tool]</span>
-										<span class="text-zinc-500">{part.tool}</span>
-										{#if part.input}
-											<span class="truncate text-zinc-700">{part.input}</span>
-										{/if}
-										{#if toolParts.length > 1}
-											<span class="text-zinc-700">+{toolParts.length - 1} more</span>
-										{/if}
-									</div>
-								{:else if part.type === 'enter_plan'}
+								{#if part.type === 'enter_plan'}
 									<div class="my-3 rounded border border-amber-700/50 bg-amber-500/5 p-4">
 										<div class="mb-2 text-xs uppercase tracking-wide text-amber-600">
 											Enter Plan Mode
@@ -891,9 +915,9 @@
 									</div>
 								{/if}
 							{/each}
-							{#if latestText}
+							{#if revealedText}
 								<div class="text-sm text-zinc-300">
-									<Markdown content={latestText.text} />
+									<Markdown content={revealedText} />
 								</div>
 							{/if}
 							{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
@@ -909,6 +933,7 @@
 					{/if}
 				</div>
 			{/if}
+			</div>
 		</div>
 
 		<!-- Error -->
@@ -931,7 +956,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<div class="h-14 w-14 shrink-0">
-					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} onclick={() => composerEl?.focus()} />
+					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} toolEmojiId={activity.toolEmojiId} toolEmoji={activity.toolEmoji} onclick={() => composerEl?.focus()} />
 				</div>
 				<textarea
 					bind:this={composerEl}
