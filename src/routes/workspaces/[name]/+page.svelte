@@ -148,6 +148,11 @@
 			const event = JSON.parse(e.data);
 			processAlive = !!event.processing;
 
+			// If agent is mid-turn, show busy state immediately
+			if (event.processing) {
+				activity.setBusy(true);
+			}
+
 			// Restore pending interaction from server data if not actively processing
 			if (!event.processing && data.pendingInteraction) {
 				if (data.pendingInteraction.type === 'enter_plan') {
@@ -926,7 +931,7 @@
 								</div>
 							{/if}
 						</div>
-					{:else if sending}
+					{:else if sending || activity.busy}
 						<div class="pl-3">
 							<BrailleSpinner />
 						</div>

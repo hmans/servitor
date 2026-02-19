@@ -28,6 +28,8 @@ interface ActiveConversation {
 	onComplete: ((text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void) | null;
 	/** Last known session ID for resumption */
 	lastSessionId: string;
+	/** True while the agent is actively doing a turn (between send and message_complete/done) */
+	busy: boolean;
 }
 
 const adapters: Record<string, AgentAdapter> = {
@@ -47,7 +49,8 @@ function getOrCreate(conversationId: string): ActiveConversation {
 			toolInvocations: [],
 			turnText: '',
 			onComplete: null,
-			lastSessionId: ''
+			lastSessionId: '',
+			busy: false
 		};
 		active.set(conversationId, conv);
 	}
@@ -97,6 +100,8 @@ export function sendMessage(
 	if (!conv.lastSessionId && opts.sessionId) {
 		conv.lastSessionId = opts.sessionId;
 	}
+
+	conv.busy = true;
 
 	// If we already have a running process, just send the message into it
 	if (conv.process) {
@@ -173,6 +178,8 @@ export function sendMessage(
 				});
 			}
 
+			conv.busy = false;
+
 			// Broadcast the event first so the UI can show the interaction
 			for (const fn of conv.listeners) {
 				fn(event);
@@ -195,6 +202,7 @@ export function sendMessage(
 		}
 
 		if (event.type === 'message_complete') {
+			conv.busy = false;
 			conv.lastSessionId = event.sessionId || conv.lastSessionId;
 			if (conv.onComplete) {
 				conv.onComplete(event.text, event.sessionId, conv.toolInvocations);
@@ -204,6 +212,7 @@ export function sendMessage(
 		}
 
 		if (event.type === 'done') {
+			conv.busy = false;
 			conv.process = null;
 		}
 	});
@@ -213,7 +222,7 @@ export function sendMessage(
 }
 
 export function isProcessing(conversationId: string): boolean {
-	return active.get(conversationId)?.process != null;
+	return active.get(conversationId)?.busy ?? false;
 }
 
 /** Return a debug snapshot of all active conversations */
