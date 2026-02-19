@@ -13,3 +13,18 @@
 <div class="markdown text-sm leading-[1.8]">
 	{@html html}
 </div>
+
+<style>
+	.markdown :global(ul),
+	.markdown :global(ol) {
+		padding-left: 1.5em;
+	}
+
+	.markdown :global(ul) {
+		list-style-type: disc;
+	}
+
+	.markdown :global(ol) {
+		list-style-type: decimal;
+	}
+</style>
