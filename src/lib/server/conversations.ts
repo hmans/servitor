@@ -109,7 +109,16 @@ export function loadMessages(worktreePath: string): Message[] {
 	const content = readFileSync(path, 'utf-8').trim();
 	if (!content) return [];
 
-	return content.split('\n').map((line) => JSON.parse(line) as Message);
+	return content
+		.split('\n')
+		.filter(Boolean)
+		.flatMap((line) => {
+			try {
+				return [JSON.parse(line) as Message];
+			} catch {
+				return [];
+			}
+		});
 }
 
 export function appendMessage(worktreePath: string, msg: Message): void {

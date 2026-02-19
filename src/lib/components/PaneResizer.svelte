@@ -75,6 +75,9 @@
 	role="separator"
 	tabindex="0"
 	aria-orientation="vertical"
+	aria-valuenow={width}
+	aria-valuemin={min}
+	aria-valuemax={max}
 	class="group relative flex shrink-0 cursor-col-resize items-center justify-center px-[3px]"
 	{onpointerdown}
 	{onpointermove}

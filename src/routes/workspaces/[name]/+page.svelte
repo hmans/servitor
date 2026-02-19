@@ -594,6 +594,7 @@
 		processAlive = false;
 		sending = false;
 		streamingParts = [];
+		activity.setBusy(false);
 		await invalidateAll();
 	}
 

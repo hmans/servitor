@@ -7,7 +7,6 @@
 	let extraPulse = $state(0);
 	let particles: Array<{ id: number; x: number; y: number; emoji: string }> = $state([]);
 	let particleId = 0;
-	let lastPulse = 0;
 
 	function spawnParticles(emojis: string[], count: number) {
 		const newParticles: typeof particles = [];

@@ -1,19 +1,15 @@
 import { readFileSync } from 'fs';
 import { ClaudeCodeAdapter } from './claude-code';
 import type { AgentAdapter, AgentEvent, AgentProcess, ExecutionMode } from './types';
-import { setPendingInteraction } from '$lib/server/conversations';
+import { setPendingInteraction, type ToolInvocation } from '$lib/server/conversations';
+
+export type { ToolInvocation };
 
 export type ConversationEvent =
 	| { type: 'user_message'; messageId: string; content: string }
 	| AgentEvent;
 
 type Listener = (event: ConversationEvent) => void;
-
-export interface ToolInvocation {
-	tool: string;
-	toolUseId: string;
-	input: string;
-}
 
 interface ActiveConversation {
 	process: AgentProcess | null;
