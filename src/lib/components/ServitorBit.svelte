@@ -44,10 +44,16 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="relative h-full w-full cursor-pointer" onclick={onClick}>
-	<Canvas>
-		<ServitorBitScene pulse={pulse + extraPulse} {busy} />
-	</Canvas>
+<div class="relative h-full w-full" style="overflow: visible">
+	<!-- Canvas extends beyond layout box so bloom has room to propagate -->
+	<div class="pointer-events-none absolute -inset-14">
+		<Canvas>
+			<ServitorBitScene pulse={pulse + extraPulse} {busy} />
+		</Canvas>
+	</div>
+
+	<!-- Click target covering Bit's visual area -->
+	<div class="absolute inset-1 cursor-pointer" onclick={onClick}></div>
 
 	{#each particles as p (p.id)}
 		<span

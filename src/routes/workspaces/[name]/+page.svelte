@@ -955,7 +955,7 @@
 				: 'border-t border-zinc-800'}"
 		>
 			<div class="flex items-center gap-2">
-				<div class="h-14 w-14 shrink-0">
+				<div class="h-14 w-14 shrink-0 overflow-visible">
 					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} toolEmojiId={activity.toolEmojiId} toolEmoji={activity.toolEmoji} onclick={() => composerEl?.focus()} />
 				</div>
 				<textarea
