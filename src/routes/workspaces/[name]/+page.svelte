@@ -256,6 +256,9 @@
 	// Pending answers: toolUseId -> { questionText -> "label" or "label1, label2" }
 	let pendingAnswers: Record<string, Record<string, string>> = $state({});
 
+	// Custom freeform answer text per toolUseId
+	let customAnswer: Record<string, string> = $state({});
+
 	// Preview state for markdown option previews: toolUseId -> { questionText -> hoveredLabel }
 	let previewOption: Record<string, Record<string, string>> = $state({});
 
@@ -359,6 +362,37 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ content, askUserAnswers })
+			});
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ message: 'Failed to send answer' }));
+				errorMessage = err.message ?? 'Failed to send answer';
+			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to send answer';
+		}
+	}
+
+	async function submitCustomAnswer(toolUseId: string) {
+		const content = customAnswer[toolUseId]?.trim();
+		if (!content) return;
+
+		streamingParts = [];
+		delete customAnswer[toolUseId];
+		delete pendingAnswers[toolUseId];
+		delete previewOption[toolUseId];
+
+		sending = true;
+		localMessages = [
+			...localMessages,
+			{ role: 'user', content, ts: new Date().toISOString() }
+		];
+
+		try {
+			const res = await fetch(`/api/workspaces/${wsName}/messages`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content })
 			});
 
 			if (!res.ok) {
@@ -690,6 +724,30 @@
 														? 'All answered'
 														: `${part.questions.length - answeredCount} unanswered`}
 												</span>
+											</div>
+										{/if}
+										{#if !part.answered}
+											<div class="mt-3 flex items-end gap-2 border-t border-zinc-700/50 pt-3">
+												<span class="pb-1.5 text-xs text-zinc-600">or</span>
+												<input
+													type="text"
+													bind:value={customAnswer[part.toolUseId]}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') {
+															e.preventDefault();
+															submitCustomAnswer(part.toolUseId);
+														}
+													}}
+													placeholder="Type a custom answer..."
+													class="flex-1 bg-transparent py-1 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
+												/>
+												<button
+													onclick={() => submitCustomAnswer(part.toolUseId)}
+													disabled={!customAnswer[part.toolUseId]?.trim()}
+													class="pb-0.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
+												>
+													[reply]
+												</button>
 											</div>
 										{/if}
 									</div>
