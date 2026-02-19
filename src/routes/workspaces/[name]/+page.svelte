@@ -429,10 +429,26 @@
 			.join(', ');
 	}
 
+	async function stopProcess() {
+		try {
+			await fetch(`/api/workspaces/${wsName}/kill`, { method: 'POST' });
+		} catch {
+			// Process may already be dead
+		}
+		processAlive = false;
+		sending = false;
+		streamingParts = [];
+		await invalidateAll();
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			sendMessage();
+		}
+		if (e.key === 'Escape' && processAlive) {
+			e.preventDefault();
+			stopProcess();
 		}
 	}
 
@@ -760,13 +776,22 @@
 					rows="1"
 					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
-				<button
-					onclick={sendMessage}
-					disabled={!input.trim()}
-					class="pb-1.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
-				>
-					[send]
-				</button>
+				{#if processAlive}
+					<button
+						onclick={stopProcess}
+						class="pb-1.5 text-xs text-red-600 transition-colors hover:text-red-400"
+					>
+						[stop]
+					</button>
+				{:else}
+					<button
+						onclick={sendMessage}
+						disabled={!input.trim()}
+						class="pb-1.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
+					>
+						[send]
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>
