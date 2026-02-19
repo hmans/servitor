@@ -171,6 +171,20 @@
 
 		const es = new EventSource(`/api/workspaces/${_ws}/stream`);
 
+		// Wrap addEventListener to log all SSE events for debugging
+		const _addEL = es.addEventListener.bind(es);
+		es.addEventListener = (type: string, listener: EventListener, ...rest: any[]) => {
+			_addEL(type, (e: Event) => {
+				const me = e as MessageEvent;
+				try {
+					console.debug(`[SSE] ${type}`, me.data ? JSON.parse(me.data) : '(no data)');
+				} catch {
+					console.debug(`[SSE] ${type}`, me.data ?? '(no data)');
+				}
+				(listener as EventListener)(e);
+			}, ...rest);
+		};
+
 		es.addEventListener('connected', (e) => {
 			const event = JSON.parse(e.data);
 			processAlive = !!event.processing;
