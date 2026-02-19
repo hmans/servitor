@@ -1,3 +1,7 @@
 [tools]
 node = "latest"
 pnpm = "latest"
+
+[tasks.test]
+description = "Run unit tests"
+run = "pnpm vitest run --project server"

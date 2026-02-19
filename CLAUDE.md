@@ -16,6 +16,7 @@
 - **Storage:** No database — workspaces derived from git worktrees, conversations stored as JSONL files
 - **Markdown:** `marked` library with custom renderer (links open in new tabs)
 - **Package manager:** pnpm
+- **Testing:** Vitest (unit), Playwright (E2E); run `mise test` or `pnpm vitest run --project server`
 
 ## Configuration
 
@@ -98,6 +99,15 @@ The `result` event that signals end-of-turn may have an empty/falsy `result` tex
 - During streaming, only the latest tool call is shown with a `+N more` badge
 - Streaming text is revealed word-by-word via a client-side typewriter effect (20ms per word)
 - Resizable panes via `PaneResizer` component
+
+## Testing
+
+- **Run tests:** `mise test` or `pnpm vitest run --project server`
+- **Test config:** `vite.config.ts` defines two Vitest projects: `server` (node environment, `src/**/*.spec.ts`) and `client` (browser/Playwright, `src/**/*.svelte.spec.ts`)
+- **Pure unit tests** (no mocking): `diff-parser.spec.ts`, `parse-events.spec.ts`
+- **Mocked unit tests** (`vi.mock`): `conversations.spec.ts` (mocks `fs`), `git.spec.ts` and `workspaces.spec.ts` (mock `child_process` and `./config`)
+- Modules that import `config` run `execSync` at load time — always `vi.mock('./config')` before importing them in tests
+- `parseClaudeEvent()` and `summarizeToolInput()` live in `src/lib/server/agents/parse-events.ts` (extracted for testability, imported by `claude-code.ts`)
 
 ## Bit (ServitorBit)
 
