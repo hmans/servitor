@@ -704,7 +704,7 @@
 									</div>
 								</details>
 								{/if}
-								<div class="text-sm text-zinc-100">
+								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
 								</div>
 							{/if}
@@ -728,7 +728,7 @@
 										</div>
 									</details>
 								{:else if part.type === 'text'}
-									<div class="text-sm text-zinc-100">
+									<div class="text-sm text-zinc-300">
 										<Markdown content={part.text} />
 									</div>
 								{:else if part.type === 'tool_use' && part === lastTool}
