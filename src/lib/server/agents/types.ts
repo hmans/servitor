@@ -6,7 +6,7 @@ export interface AgentStartConfig {
 export interface AskUserQuestion {
 	question: string;
 	header: string;
-	options: Array<{ label: string; description: string }>;
+	options: Array<{ label: string; description: string; markdown?: string }>;
 	multiSelect: boolean;
 }
 

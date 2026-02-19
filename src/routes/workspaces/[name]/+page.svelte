@@ -241,24 +241,69 @@
 		}
 	}
 
-	// Pending answers for multi-question forms: toolUseId -> { questionText -> selectedLabel }
+	// Pending answers: toolUseId -> { questionText -> "label" or "label1, label2" }
 	let pendingAnswers: Record<string, Record<string, string>> = $state({});
+
+	// Preview state for markdown option previews: toolUseId -> { questionText -> hoveredLabel }
+	let previewOption: Record<string, Record<string, string>> = $state({});
+
+	/** Check whether a label is among the selected answers (works for both single/multi-select) */
+	function isOptionPending(toolUseId: string, questionText: string, label: string): boolean {
+		const answer = pendingAnswers[toolUseId]?.[questionText] ?? '';
+		return answer
+			.split(', ')
+			.filter(Boolean)
+			.includes(label);
+	}
+
+	/** Check whether a label was selected in a persisted answer */
+	function wasOptionSelected(
+		answers: Record<string, string>,
+		questionText: string,
+		label: string
+	): boolean {
+		const answer = answers[questionText] ?? '';
+		return answer
+			.split(', ')
+			.filter(Boolean)
+			.includes(label);
+	}
 
 	function selectOption(
 		toolUseId: string,
-		questionText: string,
+		question: AskUserQuestion,
 		label: string,
-		questions: AskUserQuestion[]
+		allQuestions: AskUserQuestion[]
 	) {
 		if (!pendingAnswers[toolUseId]) {
 			pendingAnswers[toolUseId] = {};
 		}
-		pendingAnswers[toolUseId][questionText] = label;
 
-		// For single-question invocations, submit immediately on click
-		if (questions.length === 1) {
-			submitAnswers(toolUseId, questions);
+		if (question.multiSelect) {
+			// Toggle: add/remove from comma-separated list
+			const current = pendingAnswers[toolUseId][question.question] ?? '';
+			const selected = current.split(', ').filter(Boolean);
+			const idx = selected.indexOf(label);
+			if (idx >= 0) {
+				selected.splice(idx, 1);
+			} else {
+				selected.push(label);
+			}
+			pendingAnswers[toolUseId][question.question] = selected.join(', ');
+		} else {
+			// Single select
+			pendingAnswers[toolUseId][question.question] = label;
 		}
+
+		// Auto-submit for single-select with a single question
+		if (!question.multiSelect && allQuestions.length === 1) {
+			submitAnswers(toolUseId, allQuestions);
+		}
+	}
+
+	function focusPreview(toolUseId: string, questionText: string, label: string) {
+		if (!previewOption[toolUseId]) previewOption[toolUseId] = {};
+		previewOption[toolUseId][questionText] = label;
 	}
 
 	function formatAnswer(questions: AskUserQuestion[], answers: Record<string, string>): string {
@@ -272,6 +317,11 @@
 		return parts.join('\n\n');
 	}
 
+	/** Whether a set of questions needs a submit button (multi-question or any multiSelect) */
+	function needsSubmitButton(questions: AskUserQuestion[]): boolean {
+		return questions.length > 1 || questions.some((q) => q.multiSelect);
+	}
+
 	async function submitAnswers(toolUseId: string, questions: AskUserQuestion[]) {
 		const answers = pendingAnswers[toolUseId] ?? {};
 		const content = formatAnswer(questions, answers);
@@ -280,6 +330,7 @@
 		// Clear streaming parts — the persisted message will carry the rich UI
 		streamingParts = [];
 		delete pendingAnswers[toolUseId];
+		delete previewOption[toolUseId];
 
 		// Build the structured data for persistence
 		const askUserAnswers = { questions, answers };
@@ -345,6 +396,74 @@
 	});
 </script>
 
+<!-- Shared snippet for rendering a question's options (used in both streaming and persisted views) -->
+{#snippet questionOptions(q: AskUserQuestion, toolUseId: string, allQuestions: AskUserQuestion[], interactive: boolean)}
+	{@const hasMarkdown = q.options.some((o) => o.markdown)}
+
+	{#if hasMarkdown && interactive}
+		<!-- Side-by-side: option list + markdown preview -->
+		<div class="flex gap-4">
+			<div class="flex w-1/3 flex-col gap-1.5">
+				{#each q.options as option}
+					{@const selected = isOptionPending(toolUseId, q.question, option.label)}
+					<button
+						onmouseenter={() => focusPreview(toolUseId, q.question, option.label)}
+						onclick={() => selectOption(toolUseId, q, option.label, allQuestions)}
+						class="rounded border px-3 py-1.5 text-left text-sm transition-colors {selected
+							? 'border-pink-500 bg-pink-500/20 text-pink-400'
+							: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
+					>
+						<div>{option.label}</div>
+						{#if option.description}
+							<div class="text-xs text-zinc-500">{option.description}</div>
+						{/if}
+					</button>
+				{/each}
+			</div>
+			<div
+				class="flex-1 overflow-auto rounded border border-zinc-700 bg-zinc-900/50 p-3"
+			>
+				{#if q.options.find((o) => o.label === previewOption[toolUseId]?.[q.question])?.markdown}
+					<pre class="whitespace-pre-wrap font-mono text-xs text-zinc-400">{q.options.find((o) => o.label === previewOption[toolUseId]?.[q.question])?.markdown}</pre>
+				{:else}
+					<span class="text-xs text-zinc-600">Hover an option to preview</span>
+				{/if}
+			</div>
+		</div>
+	{:else if interactive}
+		<!-- Horizontal buttons (no markdown) -->
+		<div class="flex flex-wrap gap-2">
+			{#each q.options as option}
+				{@const selected = isOptionPending(toolUseId, q.question, option.label)}
+				<button
+					onclick={() => selectOption(toolUseId, q, option.label, allQuestions)}
+					class="rounded border px-3 py-1.5 text-sm transition-colors {selected
+						? 'border-pink-500 bg-pink-500/20 text-pink-400'
+						: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
+					title={option.description}
+				>
+					{option.label}
+				</button>
+			{/each}
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet questionOptionsReadonly(q: AskUserQuestion, answers: Record<string, string>)}
+	<div class="flex flex-wrap gap-2">
+		{#each q.options as option}
+			{@const selected = wasOptionSelected(answers, q.question, option.label)}
+			<span
+				class="rounded border px-3 py-1.5 text-sm {selected
+					? 'border-pink-500 bg-pink-500/20 text-pink-400'
+					: 'border-zinc-800 text-zinc-700'}"
+			>
+				{option.label}
+			</span>
+		{/each}
+	</div>
+{/snippet}
+
 <div class="flex h-full">
 	<!-- Chat column -->
 	<div class="flex min-w-0 flex-1 flex-col pr-3 font-mono">
@@ -382,6 +501,7 @@
 					{#each localMessages as msg, i (i)}
 						<div class="group">
 							{#if msg.role === 'user' && msg.askUserAnswers}
+								<!-- Persisted answer with rich UI -->
 								<div class="rounded border border-zinc-700 p-4">
 									{#each msg.askUserAnswers.questions as q}
 										<div class="mb-4 last:mb-0">
@@ -389,19 +509,7 @@
 												{q.header}
 											</div>
 											<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
-											<div class="flex flex-wrap gap-2">
-												{#each q.options as option}
-													{@const wasSelected =
-														msg.askUserAnswers?.answers[q.question] === option.label}
-													<span
-														class="rounded border px-3 py-1.5 text-sm {wasSelected
-															? 'border-pink-500 bg-pink-500/20 text-pink-400'
-															: 'border-zinc-800 text-zinc-700'}"
-													>
-														{option.label}
-													</span>
-												{/each}
-											</div>
+											{@render questionOptionsReadonly(q, msg.askUserAnswers?.answers ?? {})}
 										</div>
 									{/each}
 								</div>
@@ -467,49 +575,16 @@
 												</div>
 												<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
 												{#if part.answered}
-													<div class="flex flex-wrap gap-2">
-														{#each q.options as option}
-															{@const wasSelected =
-																part.submittedAnswers?.[q.question] === option.label}
-															<span
-																class="rounded border px-3 py-1.5 text-sm {wasSelected
-																	? 'border-pink-500 bg-pink-500/20 text-pink-400'
-																	: 'border-zinc-800 text-zinc-700'}"
-															>
-																{option.label}
-															</span>
-														{/each}
-													</div>
+													{@render questionOptionsReadonly(q, part.submittedAnswers ?? {})}
 												{:else}
-													<div class="flex flex-wrap gap-2">
-														{#each q.options as option}
-															{@const selected =
-																pendingAnswers[part.toolUseId]?.[q.question] ===
-																option.label}
-															<button
-																onclick={() =>
-																	selectOption(
-																		part.toolUseId,
-																		q.question,
-																		option.label,
-																		part.questions
-																	)}
-																class="rounded border px-3 py-1.5 text-sm transition-colors {selected
-																	? 'border-pink-500 bg-pink-500/20 text-pink-400'
-																	: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
-																title={option.description}
-															>
-																{option.label}
-															</button>
-														{/each}
-													</div>
+													{@render questionOptions(q, part.toolUseId, part.questions, true)}
 												{/if}
 											</div>
 										{/each}
-										{#if !part.answered && part.questions.length > 1}
+										{#if !part.answered && needsSubmitButton(part.questions)}
 											{@const answeredCount = Object.keys(
 												pendingAnswers[part.toolUseId] ?? {}
-											).length}
+											).filter((k) => pendingAnswers[part.toolUseId][k]).length}
 											<div
 												class="mt-4 flex items-center gap-3 border-t border-zinc-700/50 pt-3"
 											>

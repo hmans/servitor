@@ -7,7 +7,7 @@ export type PendingInteraction =
 			questions: Array<{
 				question: string;
 				header: string;
-				options: Array<{ label: string; description: string }>;
+				options: Array<{ label: string; description: string; markdown?: string }>;
 				multiSelect: boolean;
 			}>;
 	  }
@@ -31,7 +31,7 @@ export interface AskUserAnswerData {
 	questions: Array<{
 		question: string;
 		header: string;
-		options: Array<{ label: string; description: string }>;
+		options: Array<{ label: string; description: string; markdown?: string }>;
 		multiSelect: boolean;
 	}>;
 	answers: Record<string, string>;

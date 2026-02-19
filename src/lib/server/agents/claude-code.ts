@@ -154,7 +154,7 @@ function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): Age
 					const questions = (input?.questions ?? []) as Array<{
 						question: string;
 						header: string;
-						options: Array<{ label: string; description: string }>;
+						options: Array<{ label: string; description: string; markdown?: string }>;
 						multiSelect: boolean;
 					}>;
 					events.push({
