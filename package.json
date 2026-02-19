@@ -25,6 +25,7 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/node": "^24",
+		"@types/three": "^0.183.0",
 		"@vitest/browser-playwright": "^4.0.18",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
@@ -45,7 +46,10 @@
 	},
 	"dependencies": {
 		"@fontsource-variable/spline-sans-mono": "^5.2.8",
+		"@threlte/core": "^8.3.1",
+		"@threlte/extras": "^9.7.1",
 		"marked": "^17.0.2",
+		"three": "^0.183.0",
 		"yaml": "^2.8.2"
 	},
 	"pnpm": {

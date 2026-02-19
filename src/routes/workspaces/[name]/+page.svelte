@@ -6,8 +6,10 @@
 	import InfoPane from '$lib/components/InfoPane.svelte';
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
 	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
+	import ServitorBit from '$lib/components/ServitorBit.svelte';
 
 	import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
+	import { activity } from '$lib/stores/activity.svelte';
 
 	let { data } = $props();
 
@@ -94,6 +96,7 @@
 		streamingParts = [];
 		sending = false;
 		processAlive = false;
+		activity.setBusy(false);
 
 		const es = new EventSource(`/api/workspaces/${_ws}/stream`);
 
@@ -135,6 +138,8 @@
 			const event = JSON.parse(e.data);
 			processAlive = true;
 			sending = false;
+			activity.setBusy(true);
+			activity.pulse();
 			streamingParts = [...streamingParts, { type: 'thinking', text: event.text }];
 		});
 
@@ -142,6 +147,8 @@
 			const event = JSON.parse(e.data);
 			processAlive = true;
 			sending = false;
+			activity.setBusy(true);
+			activity.pulse();
 			streamingParts = [...streamingParts, { type: 'text', text: event.text }];
 		});
 
@@ -149,6 +156,8 @@
 			const event = JSON.parse(e.data);
 			processAlive = true;
 			sending = false;
+			activity.setBusy(true);
+			activity.pulse();
 			streamingParts = [
 				...streamingParts,
 				{
@@ -204,6 +213,7 @@
 		es.addEventListener('message_complete', async () => {
 			sending = false;
 			processAlive = false;
+			activity.setBusy(false);
 			streamingParts = [];
 			await invalidateAll();
 		});
@@ -211,6 +221,7 @@
 		es.addEventListener('done', async () => {
 			sending = false;
 			processAlive = false;
+			activity.setBusy(false);
 			// Preserve streaming parts if there's a pending interaction
 			const hasPendingInteraction = streamingParts.some(
 				(p) =>
@@ -232,6 +243,7 @@
 			}
 			sending = false;
 			processAlive = false;
+			activity.setBusy(false);
 			streamingParts = [];
 		});
 
@@ -656,7 +668,7 @@
 		</div>
 
 		<!-- Messages -->
-		<div bind:this={messagesEl} class="flex-1 overflow-auto py-3">
+		<div bind:this={messagesEl} class="flex flex-1 flex-col justify-end overflow-auto py-3">
 			{#if localMessages.length === 0 && !sending}
 				<div class="flex h-full items-center justify-center">
 					<p class="text-sm text-zinc-600">Type a message to begin.</p>
@@ -879,7 +891,7 @@
 								</div>
 							{/if}
 						</div>
-					{:else if sending || processAlive}
+					{:else if sending}
 						<div class="pl-3">
 							<BrailleSpinner />
 						</div>
@@ -906,20 +918,22 @@
 				? 'border-t border-amber-500/30'
 				: 'border-t border-zinc-800'}"
 		>
-			<div class="flex items-end gap-2">
-				<span class="pb-2 text-sm {executionMode === 'plan' ? 'text-amber-600' : 'text-pink-600'}">{'>'}</span>
+			<div class="flex items-center gap-2">
+				<div class="h-14 w-14 shrink-0">
+					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} />
+				</div>
 				<textarea
 					bind:this={composerEl}
 					bind:value={input}
 					onkeydown={handleKeydown}
-					placeholder="..."
+					placeholder=""
 					rows="1"
 					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
 				{#if processAlive}
 					<button
 						onclick={stopProcess}
-						class="pb-1.5 text-xs text-red-600 transition-colors hover:text-red-400"
+						class="text-xs text-red-600 transition-colors hover:text-red-400"
 					>
 						[stop]
 					</button>
@@ -927,7 +941,7 @@
 					<button
 						onclick={sendMessage}
 						disabled={!input.trim()}
-						class="pb-1.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
+						class="text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
 					>
 						[send]
 					</button>
