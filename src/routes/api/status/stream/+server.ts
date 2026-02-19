@@ -1,54 +1,12 @@
 import { subscribeGlobalStatus, getAllStatuses } from '$lib/server/agents/manager';
+import { createSSEResponse } from '$lib/server/sse';
 
 export function GET({ request }) {
-	let unsubscribe: (() => void) | undefined;
-	let heartbeat: ReturnType<typeof setInterval> | undefined;
+	return createSSEResponse(request, (send) => {
+		send('connected', { statuses: getAllStatuses() });
 
-	const stream = new ReadableStream({
-		start(controller) {
-			const encoder = new TextEncoder();
-
-			const send = (event: string, data: unknown) => {
-				try {
-					controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-				} catch {
-					cleanup();
-				}
-			};
-
-			send('connected', { statuses: getAllStatuses() });
-
-			unsubscribe = subscribeGlobalStatus((status) => {
-				send('status', status);
-			});
-
-			heartbeat = setInterval(() => {
-				try {
-					controller.enqueue(encoder.encode(': heartbeat\n\n'));
-				} catch {
-					cleanup();
-				}
-			}, 15000);
-
-			request.signal.addEventListener('abort', () => cleanup());
-		},
-		cancel() {
-			cleanup();
-		}
-	});
-
-	function cleanup() {
-		if (heartbeat) clearInterval(heartbeat);
-		unsubscribe?.();
-		heartbeat = undefined;
-		unsubscribe = undefined;
-	}
-
-	return new Response(stream, {
-		headers: {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			Connection: 'keep-alive'
-		}
+		return subscribeGlobalStatus((status) => {
+			send('status', status);
+		});
 	});
 }
