@@ -384,6 +384,17 @@
 		}
 	}
 
+	/** Produce a compact summary like "Read x8, Bash x3, Grep x2" */
+	function summarizeTools(tools: Array<{ tool: string }>): string {
+		const counts = new Map<string, number>();
+		for (const t of tools) {
+			counts.set(t.tool, (counts.get(t.tool) ?? 0) + 1);
+		}
+		return [...counts.entries()]
+			.map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
+			.join(', ');
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
@@ -520,18 +531,24 @@
 									{msg.content}
 								</div>
 							{:else}
-								{#if msg.toolInvocations}
-									<div class="space-y-1 py-1">
+								{#if msg.toolInvocations && msg.toolInvocations.length > 0}
+								{@const toolSummary = summarizeTools(msg.toolInvocations)}
+								<details class="py-1 text-sm">
+									<summary class="flex cursor-pointer items-center gap-2 pl-3 text-zinc-600">
+										<span class="text-amber-600">[tools]</span>
+										<span class="text-zinc-500">{toolSummary}</span>
+									</summary>
+									<div class="mt-1 space-y-0.5 pl-6">
 										{#each msg.toolInvocations as t (t.toolUseId)}
-											<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
-												<span class="text-amber-600">[tool]</span>
-												<span class="text-zinc-500">{t.tool}</span>
+											<div class="flex items-center gap-2 text-xs text-zinc-700">
+												<span class="text-amber-700">{t.tool}</span>
 												{#if t.input}
-													<span class="truncate text-zinc-700">{t.input}</span>
+													<span class="truncate">{t.input}</span>
 												{/if}
 											</div>
 										{/each}
 									</div>
+								</details>
 								{/if}
 								<div class="text-sm text-zinc-100">
 									<Markdown content={msg.content} />
@@ -542,6 +559,8 @@
 
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
+						{@const toolParts = streamingParts.filter((p) => p.type === 'tool_use')}
+						{@const lastTool = toolParts.length > 0 ? toolParts[toolParts.length - 1] : null}
 						<div class="space-y-3">
 							{#each streamingParts as part, i (i)}
 								{#if part.type === 'thinking'}
@@ -558,12 +577,15 @@
 									<div class="text-sm text-zinc-100">
 										<Markdown content={part.text} />
 									</div>
-								{:else if part.type === 'tool_use'}
+								{:else if part.type === 'tool_use' && part === lastTool}
 									<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
 										<span class="text-amber-600">[tool]</span>
 										<span class="text-zinc-500">{part.tool}</span>
 										{#if part.input}
 											<span class="truncate text-zinc-700">{part.input}</span>
+										{/if}
+										{#if toolParts.length > 1}
+											<span class="text-zinc-700">+{toolParts.length - 1} more</span>
 										{/if}
 									</div>
 								{:else if part.type === 'ask_user'}
