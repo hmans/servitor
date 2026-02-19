@@ -607,9 +607,9 @@
 <div class="flex h-full">
 	<!-- Chat column -->
 	<div
-		class="flex min-w-0 flex-1 flex-col pr-3 font-mono {executionMode === 'plan'
-			? 'border-l-2 border-l-amber-500/50 pl-3'
-			: ''}"
+		class="flex min-w-0 flex-1 flex-col border-l-2 pl-3 pr-3 font-mono {executionMode === 'plan'
+			? 'border-l-amber-500/50'
+			: 'border-l-transparent'}"
 	>
 		<!-- Header -->
 		<div
