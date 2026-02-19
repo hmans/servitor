@@ -1,5 +1,6 @@
 import { ClaudeCodeAdapter } from './claude-code';
 import type { AgentAdapter, AgentEvent, AgentProcess } from './types';
+import { setPendingInteraction } from '$lib/server/conversations';
 
 export type ConversationEvent =
 	| { type: 'user_message'; messageId: string; content: string }
@@ -125,10 +126,10 @@ export function sendMessage(
 			conv.turnText += event.text;
 		}
 
-		// Kill the process immediately when AskUserQuestion is detected,
-		// before the CLI can auto-decline it. The user will answer via the UI
-		// and a new process will be spawned with --resume.
-		if (event.type === 'ask_user') {
+		// Kill the process immediately when AskUserQuestion or ExitPlanMode is
+		// detected. The user will answer via the UI and a new process will be
+		// spawned with --resume.
+		if (event.type === 'ask_user' || event.type === 'exit_plan') {
 			conv.lastSessionId = event.sessionId;
 
 			// Persist partial assistant message if there's accumulated content
@@ -138,7 +139,17 @@ export function sendMessage(
 				conv.turnText = '';
 			}
 
-			// Broadcast the ask_user event first so the UI can show the question
+			// Persist the pending interaction so it survives page reloads
+			if (event.type === 'ask_user') {
+				setPendingInteraction(conv.cwd, { type: 'ask_user', questions: event.questions });
+			} else {
+				setPendingInteraction(conv.cwd, {
+					type: 'exit_plan',
+					allowedPrompts: event.allowedPrompts
+				});
+			}
+
+			// Broadcast the event first so the UI can show the interaction
 			for (const fn of conv.listeners) {
 				fn(event);
 			}

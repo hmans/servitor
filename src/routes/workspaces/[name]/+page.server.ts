@@ -14,7 +14,7 @@ export async function load({ params }) {
 	const ws = getWorkspace(params.name);
 	if (!ws) error(404, 'Workspace not found');
 
-	ensureConversation(ws.worktreePath);
+	const meta = ensureConversation(ws.worktreePath);
 	const messages = loadMessages(ws.worktreePath);
 
 	const baseBranch = getDefaultBranch();
@@ -27,6 +27,7 @@ export async function load({ params }) {
 	return {
 		workspace: ws,
 		messages,
+		pendingInteraction: meta.pendingInteraction ?? null,
 		commits,
 		committedDiff,
 		committedStatus,

@@ -1,6 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { getWorkspace } from '$lib/server/workspaces';
-import { ensureConversation, appendMessage, updateConversationMeta } from '$lib/server/conversations';
+import {
+	ensureConversation,
+	appendMessage,
+	updateConversationMeta,
+	clearPendingInteraction
+} from '$lib/server/conversations';
 import { sendMessage } from '$lib/server/agents/manager';
 
 export async function POST({ params, request }) {
@@ -21,6 +26,9 @@ export async function POST({ params, request }) {
 		msg.askUserAnswers = body.askUserAnswers;
 	}
 	appendMessage(ws.worktreePath, msg);
+
+	// Clear any pending interaction (ask_user / exit_plan) since the user is responding
+	clearPendingInteraction(ws.worktreePath);
 
 	// Agent manager key — just the workspace name
 	const managerKey = params.name;

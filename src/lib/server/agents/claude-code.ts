@@ -28,6 +28,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		// Strip CLAUDECODE env var to allow nested sessions
 		const env = { ...process.env };
 		delete env.CLAUDECODE;
+		env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
 
 		const proc = spawn(claudePath, args, {
 			cwd: config.cwd,
@@ -140,6 +141,9 @@ function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): Age
 		const content = (message?.content ?? []) as Array<Record<string, unknown>>;
 
 		for (const block of content) {
+			if (block.type === 'thinking' && typeof block.thinking === 'string') {
+				events.push({ type: 'thinking', text: block.thinking });
+			}
 			if (block.type === 'text' && typeof block.text === 'string') {
 				events.push({ type: 'text_delta', text: block.text });
 			}
@@ -159,6 +163,15 @@ function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): Age
 						questions,
 						sessionId
 					});
+				} else if (block.name === 'ExitPlanMode') {
+					events.push({
+						type: 'exit_plan',
+						toolUseId: block.id as string,
+						allowedPrompts: input?.allowedPrompts as
+							| Array<{ tool: string; prompt: string }>
+							| undefined,
+						sessionId
+					});
 				} else {
 					events.push({
 						type: 'tool_use_start',
@@ -172,15 +185,11 @@ function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): Age
 	}
 
 	if (data.type === 'result') {
-		const result = data.result as string | undefined;
-		const sid = data.session_id as string | undefined;
-		if (result) {
-			events.push({
-				type: 'message_complete',
-				text: result,
-				sessionId: sid ?? ''
-			});
-		}
+		events.push({
+			type: 'message_complete',
+			text: (data.result as string) ?? '',
+			sessionId: (data.session_id as string) ?? sessionId
+		});
 	}
 
 	return events;

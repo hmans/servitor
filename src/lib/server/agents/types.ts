@@ -12,9 +12,16 @@ export interface AskUserQuestion {
 
 export type AgentEvent =
 	| { type: 'text_delta'; text: string }
+	| { type: 'thinking'; text: string }
 	| { type: 'tool_use_start'; tool: string; toolUseId: string; input: string }
 	| { type: 'tool_result'; toolUseId: string }
 	| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[]; sessionId: string }
+	| {
+			type: 'exit_plan';
+			toolUseId: string;
+			allowedPrompts?: Array<{ tool: string; prompt: string }>;
+			sessionId: string;
+	  }
 	| { type: 'message_complete'; text: string; sessionId: string }
 	| { type: 'error'; message: string }
 	| { type: 'done'; sessionId: string };

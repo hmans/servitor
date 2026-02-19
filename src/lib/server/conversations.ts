@@ -1,10 +1,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { join } from 'path';
 
+export type PendingInteraction =
+	| {
+			type: 'ask_user';
+			questions: Array<{
+				question: string;
+				header: string;
+				options: Array<{ label: string; description: string }>;
+				multiSelect: boolean;
+			}>;
+	  }
+	| { type: 'exit_plan'; allowedPrompts?: Array<{ tool: string; prompt: string }> };
+
 export interface ConversationMeta {
 	title: string;
 	agentType: string;
 	agentSessionId?: string;
+	pendingInteraction?: PendingInteraction;
 	createdAt: string;
 }
 
@@ -106,4 +119,22 @@ export function updateConversationMeta(
 
 	const updated = { ...meta, ...updates };
 	writeFileSync(metaPath(worktreePath), JSON.stringify(updated, null, '\t') + '\n');
+}
+
+export function setPendingInteraction(worktreePath: string, interaction: PendingInteraction): void {
+	const meta = getConversationMeta(worktreePath);
+	if (!meta) return;
+
+	writeFileSync(
+		metaPath(worktreePath),
+		JSON.stringify({ ...meta, pendingInteraction: interaction }, null, '\t') + '\n'
+	);
+}
+
+export function clearPendingInteraction(worktreePath: string): void {
+	const meta = getConversationMeta(worktreePath);
+	if (!meta) return;
+
+	const { pendingInteraction: _, ...rest } = meta;
+	writeFileSync(metaPath(worktreePath), JSON.stringify(rest, null, '\t') + '\n');
 }
