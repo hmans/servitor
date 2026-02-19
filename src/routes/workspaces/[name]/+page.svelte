@@ -606,9 +606,17 @@
 
 <div class="flex h-full">
 	<!-- Chat column -->
-	<div class="flex min-w-0 flex-1 flex-col pr-3 font-mono">
+	<div
+		class="flex min-w-0 flex-1 flex-col pr-3 font-mono {executionMode === 'plan'
+			? 'border-l-2 border-l-amber-500/50 pl-3'
+			: ''}"
+	>
 		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+		<div
+			class="flex items-center justify-between pb-3 {executionMode === 'plan'
+				? 'border-b border-amber-500/30'
+				: 'border-b border-zinc-800'}"
+		>
 			<div class="flex items-center gap-2 text-sm">
 				<span class="text-zinc-200">{data.workspace.name}</span>
 				{#if processAlive || sending}
@@ -893,9 +901,13 @@
 		{/if}
 
 		<!-- Input -->
-		<div class="border-t border-zinc-800 pt-3">
+		<div
+			class="pt-3 {executionMode === 'plan'
+				? 'border-t border-amber-500/30'
+				: 'border-t border-zinc-800'}"
+		>
 			<div class="flex items-end gap-2">
-				<span class="pb-2 text-sm text-pink-600">{'>'}</span>
+				<span class="pb-2 text-sm {executionMode === 'plan' ? 'text-amber-600' : 'text-pink-600'}">{'>'}</span>
 				<textarea
 					bind:this={composerEl}
 					bind:value={input}
