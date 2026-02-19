@@ -186,6 +186,10 @@
 
 		const es = new EventSource(`/api/workspaces/${_ws}/stream`);
 
+		// Track whether message_complete already fired this turn, so the
+		// done handler can skip a redundant invalidateAll().
+		let turnCompleted = false;
+
 		// Wrap addEventListener to log all SSE events for debugging
 		const _addEL = es.addEventListener.bind(es);
 		es.addEventListener = (type: string, listener: EventListener, ...rest: any[]) => {
@@ -317,6 +321,7 @@
 		});
 
 		es.addEventListener('message_complete', async () => {
+			turnCompleted = true;
 			sending = false;
 			processAlive = false;
 			activity.setBusy(false);
@@ -347,7 +352,12 @@
 					!p.answered
 			);
 
-			await invalidateAll();
+			// Skip redundant invalidateAll() if message_complete already handled it
+			if (!turnCompleted) {
+				await invalidateAll();
+			}
+			turnCompleted = false;
+
 			if (!hasPendingInteraction) {
 				streamingParts = [];
 			}

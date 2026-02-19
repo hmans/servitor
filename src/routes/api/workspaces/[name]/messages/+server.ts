@@ -79,7 +79,7 @@ export async function POST({ params, request }) {
 		executionMode: conv.executionMode ?? 'build',
 		onComplete: (text, sessionId, toolInvocations, thinking) => {
 			// Persist assistant message
-			if (text || thinking) {
+			if (text || thinking || toolInvocations.length > 0) {
 				appendMessage(ws.worktreePath, {
 					role: 'assistant',
 					content: text,

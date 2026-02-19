@@ -224,16 +224,18 @@ export function sendMessage(
 			return;
 		}
 
-		for (const fn of conv.listeners) {
-			fn(event);
-		}
-
+		// Accumulate tool invocations before broadcasting so state is
+		// consistent if a listener inspects conv.toolInvocations.
 		if (event.type === 'tool_use_start') {
 			conv.toolInvocations.push({
 				tool: event.tool,
 				toolUseId: event.toolUseId,
 				input: event.input
 			});
+		}
+
+		for (const fn of conv.listeners) {
+			fn(event);
 		}
 
 		if (event.type === 'message_complete') {
