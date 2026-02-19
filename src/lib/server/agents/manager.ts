@@ -129,10 +129,10 @@ export function sendMessage(
 			conv.turnText += event.text;
 		}
 
-		// Kill the process immediately when AskUserQuestion or ExitPlanMode is
-		// detected. The user will answer via the UI and a new process will be
+		// Kill the process immediately when a blocking tool is detected.
+		// The user will answer via the UI and a new process will be
 		// spawned with --resume.
-		if (event.type === 'ask_user' || event.type === 'exit_plan') {
+		if (event.type === 'enter_plan' || event.type === 'ask_user' || event.type === 'exit_plan') {
 			conv.lastSessionId = event.sessionId;
 
 			// Snapshot tool invocations before persisting (which resets the array)
@@ -146,7 +146,9 @@ export function sendMessage(
 			}
 
 			// Persist the pending interaction so it survives page reloads
-			if (event.type === 'ask_user') {
+			if (event.type === 'enter_plan') {
+				setPendingInteraction(conv.cwd, { type: 'enter_plan' });
+			} else if (event.type === 'ask_user') {
 				setPendingInteraction(conv.cwd, { type: 'ask_user', questions: event.questions });
 			} else {
 				// Find the plan file from tool invocations (Write to ~/.claude/plans/*.md)

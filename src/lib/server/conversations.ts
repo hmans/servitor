@@ -5,6 +5,7 @@ import type { ExecutionMode } from './agents/types';
 export type { ExecutionMode };
 
 export type PendingInteraction =
+	| { type: 'enter_plan' }
 	| {
 			type: 'ask_user';
 			questions: Array<{

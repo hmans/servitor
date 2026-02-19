@@ -18,6 +18,7 @@ export type AgentEvent =
 	| { type: 'thinking'; text: string }
 	| { type: 'tool_use_start'; tool: string; toolUseId: string; input: string }
 	| { type: 'tool_result'; toolUseId: string }
+	| { type: 'enter_plan'; toolUseId: string; sessionId: string }
 	| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[]; sessionId: string }
 	| {
 			type: 'exit_plan';

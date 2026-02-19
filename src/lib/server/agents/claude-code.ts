@@ -156,7 +156,13 @@ function parseClaudeEvent(data: Record<string, unknown>, sessionId: string): Age
 			if (block.type === 'tool_use') {
 				const input = block.input as Record<string, unknown> | undefined;
 
-				if (block.name === 'AskUserQuestion') {
+				if (block.name === 'EnterPlanMode') {
+					events.push({
+						type: 'enter_plan',
+						toolUseId: block.id as string,
+						sessionId
+					});
+				} else if (block.name === 'AskUserQuestion') {
 					const questions = (input?.questions ?? []) as Array<{
 						question: string;
 						header: string;

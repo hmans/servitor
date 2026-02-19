@@ -31,6 +31,7 @@
 		| { type: 'text'; text: string }
 		| { type: 'thinking'; text: string }
 		| { type: 'tool_use'; tool: string; input: string; toolUseId: string }
+		| { type: 'enter_plan'; toolUseId: string; answered: boolean }
 		| {
 				type: 'ask_user';
 				toolUseId: string;
@@ -102,7 +103,11 @@
 
 			// Restore pending interaction from server data if not actively processing
 			if (!event.processing && data.pendingInteraction) {
-				if (data.pendingInteraction.type === 'ask_user') {
+				if (data.pendingInteraction.type === 'enter_plan') {
+					streamingParts = [
+						{ type: 'enter_plan', toolUseId: 'persisted', answered: false }
+					];
+				} else if (data.pendingInteraction.type === 'ask_user') {
 					streamingParts = [
 						{
 							type: 'ask_user',
@@ -155,6 +160,15 @@
 			];
 		});
 
+		es.addEventListener('enter_plan', (e) => {
+			const event = JSON.parse(e.data);
+			sending = false;
+			streamingParts = [
+				...streamingParts,
+				{ type: 'enter_plan', toolUseId: event.toolUseId, answered: false }
+			];
+		});
+
 		es.addEventListener('ask_user', (e) => {
 			const event = JSON.parse(e.data);
 			// Process will be killed by the server — don't set processAlive
@@ -199,7 +213,9 @@
 			processAlive = false;
 			// Preserve streaming parts if there's a pending interaction
 			const hasPendingInteraction = streamingParts.some(
-				(p) => (p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered
+				(p) =>
+					(p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') &&
+					!p.answered
 			);
 			if (!hasPendingInteraction) {
 				streamingParts = [];
@@ -418,6 +434,35 @@
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to change mode';
+		}
+	}
+
+	async function approveEnterPlan(approved: boolean) {
+		streamingParts = [];
+		sending = true;
+
+		if (approved) {
+			await setMode('plan');
+		}
+
+		const content = approved
+			? 'Yes, please plan first.'
+			: 'No, just proceed with implementation.';
+
+		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
+
+		try {
+			const res = await fetch(`/api/workspaces/${wsName}/messages`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content })
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ message: 'Failed to send' }));
+				errorMessage = err.message ?? 'Failed to send';
+			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to send';
 		}
 	}
 
@@ -689,6 +734,31 @@
 											<span class="text-zinc-700">+{toolParts.length - 1} more</span>
 										{/if}
 									</div>
+								{:else if part.type === 'enter_plan'}
+									<div class="my-3 rounded border border-amber-700/50 bg-amber-500/5 p-4">
+										<div class="mb-2 text-xs uppercase tracking-wide text-amber-600">
+											Enter Plan Mode
+										</div>
+										<div class="mb-3 text-sm text-zinc-300">
+											The agent wants to plan before implementing. Switch to plan mode?
+										</div>
+										{#if !part.answered}
+											<div class="flex gap-2">
+												<button
+													onclick={() => approveEnterPlan(true)}
+													class="rounded border border-amber-600 px-4 py-1.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/20"
+												>
+													[plan first]
+												</button>
+												<button
+													onclick={() => approveEnterPlan(false)}
+													class="rounded border border-zinc-600 px-4 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-500/20"
+												>
+													[just build]
+												</button>
+											</div>
+										{/if}
+									</div>
 								{:else if part.type === 'ask_user'}
 									<div class="my-3 rounded border border-zinc-700 p-4">
 										{#each part.questions as q}
@@ -795,7 +865,7 @@
 									</div>
 								{/if}
 							{/each}
-							{#if !streamingParts.some((p) => (p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
+							{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
 								<div class="pl-3">
 									<BrailleSpinner />
 								</div>
