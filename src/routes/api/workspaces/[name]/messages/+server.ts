@@ -40,6 +40,7 @@ export async function POST({ params, request }) {
 		agentType: conv.agentType,
 		cwd: ws.worktreePath,
 		sessionId: conv.agentSessionId,
+		executionMode: conv.executionMode ?? 'build',
 		onComplete: (text, sessionId, toolInvocations) => {
 			// Persist assistant message
 			if (text) {

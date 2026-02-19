@@ -7,7 +7,7 @@
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
 	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 
-	import type { AskUserQuestion } from '$lib/server/agents/types';
+	import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
 
 	let { data } = $props();
 
@@ -16,6 +16,12 @@
 	let sending = $state(false);
 	let processAlive = $state(false);
 	let errorMessage = $state('');
+	let executionMode: ExecutionMode = $state('build');
+
+	// Sync execution mode from server data
+	$effect(() => {
+		executionMode = (data.executionMode as ExecutionMode) ?? 'build';
+	});
 	let messagesEl: HTMLDivElement | undefined = $state();
 	let composerEl: HTMLTextAreaElement | undefined = $state();
 	let eventSource: EventSource | null = null;
@@ -36,6 +42,8 @@
 				type: 'exit_plan';
 				toolUseId: string;
 				allowedPrompts?: Array<{ tool: string; prompt: string }>;
+				planContent?: string;
+				planFilePath?: string;
 				answered: boolean;
 		  }
 	> = $state([]);
@@ -109,6 +117,8 @@
 							type: 'exit_plan',
 							toolUseId: 'persisted',
 							allowedPrompts: data.pendingInteraction.allowedPrompts,
+							planContent: data.pendingInteraction.planContent,
+							planFilePath: data.pendingInteraction.planFilePath,
 							answered: false
 						}
 					];
@@ -170,6 +180,8 @@
 					type: 'exit_plan',
 					toolUseId: event.toolUseId,
 					allowedPrompts: event.allowedPrompts,
+					planContent: event.planContent,
+					planFilePath: event.planFilePath,
 					answered: false
 				}
 			];
@@ -358,9 +370,31 @@
 		}
 	}
 
+	async function setMode(mode: ExecutionMode) {
+		try {
+			const res = await fetch(`/api/workspaces/${wsName}/mode`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ mode })
+			});
+			if (res.ok) {
+				executionMode = mode;
+				// If process was running, it was killed — reflect that
+				processAlive = false;
+			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to change mode';
+		}
+	}
+
 	async function approvePlan(approved: boolean) {
 		streamingParts = [];
 		sending = true;
+
+		// Switch from plan → build on approval
+		if (approved && executionMode === 'plan') {
+			await setMode('build');
+		}
 
 		const content = approved
 			? 'Plan approved. Proceed with the implementation.'
@@ -488,17 +522,34 @@
 					<span class="inline-block h-2 w-2 rounded-full bg-zinc-700"></span>
 				{/if}
 			</div>
-			<form method="POST" action="?/delete" use:enhance>
-				<button
-					type="submit"
-					onclick={(e: MouseEvent) => {
-						if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
-					}}
-					class="text-xs text-zinc-600 transition-colors hover:text-red-400"
-				>
-					[delete]
-				</button>
-			</form>
+			<div class="flex items-center gap-3">
+				<!-- Execution mode selector -->
+				<div class="flex gap-1 text-xs">
+					{#each ['plan', 'build'] as mode}
+						<button
+							onclick={() => setMode(mode as ExecutionMode)}
+							class="rounded px-2 py-0.5 transition-colors {executionMode === mode
+								? mode === 'plan'
+									? 'bg-amber-500/20 text-amber-400'
+									: 'bg-green-500/20 text-green-400'
+								: 'text-zinc-600 hover:text-zinc-400'}"
+						>
+							{mode}
+						</button>
+					{/each}
+				</div>
+				<form method="POST" action="?/delete" use:enhance>
+					<button
+						type="submit"
+						onclick={(e: MouseEvent) => {
+							if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
+						}}
+						class="text-xs text-zinc-600 transition-colors hover:text-red-400"
+					>
+						[delete]
+					</button>
+				</form>
+			</div>
 		</div>
 
 		<!-- Messages -->
@@ -628,9 +679,22 @@
 									</div>
 								{:else if part.type === 'exit_plan'}
 									<div class="my-3 rounded border border-zinc-700 p-4">
-										<div class="mb-2 text-xs uppercase tracking-wide text-amber-600">
-											Plan Approval
+										<div class="mb-2 flex items-center gap-3 text-xs uppercase tracking-wide text-amber-600">
+											<span>Plan Approval</span>
+											{#if part.planFilePath}
+												<span class="normal-case tracking-normal text-zinc-600">{part.planFilePath}</span>
+											{/if}
 										</div>
+										{#if part.planContent}
+											<details open={!part.answered}>
+												<summary class="mb-2 cursor-pointer text-xs text-zinc-500 hover:text-zinc-400">
+													{part.answered ? 'Show plan' : 'Plan details'}
+												</summary>
+												<div class="mb-4 max-h-[60vh] overflow-auto rounded border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
+													<Markdown content={part.planContent} />
+												</div>
+											</details>
+										{/if}
 										{#if part.allowedPrompts?.length}
 											<div class="mb-3 text-xs text-zinc-500">
 												Requested permissions: {part.allowedPrompts

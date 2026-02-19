@@ -1,5 +1,6 @@
+import { readFileSync } from 'fs';
 import { ClaudeCodeAdapter } from './claude-code';
-import type { AgentAdapter, AgentEvent, AgentProcess } from './types';
+import type { AgentAdapter, AgentEvent, AgentProcess, ExecutionMode } from './types';
 import { setPendingInteraction } from '$lib/server/conversations';
 
 export type ConversationEvent =
@@ -73,6 +74,7 @@ export function sendMessage(
 		agentType: string;
 		cwd: string;
 		sessionId?: string;
+		executionMode: ExecutionMode;
 		onComplete: (text: string, sessionId: string, toolInvocations: ToolInvocation[]) => void;
 	}
 ): void {
@@ -116,7 +118,8 @@ export function sendMessage(
 
 	const process = adapter.start({
 		cwd: opts.cwd,
-		sessionId: conv.lastSessionId || undefined
+		sessionId: conv.lastSessionId || undefined,
+		executionMode: opts.executionMode
 	});
 	conv.process = process;
 
@@ -132,6 +135,9 @@ export function sendMessage(
 		if (event.type === 'ask_user' || event.type === 'exit_plan') {
 			conv.lastSessionId = event.sessionId;
 
+			// Snapshot tool invocations before persisting (which resets the array)
+			const turnToolInvocations = [...conv.toolInvocations];
+
 			// Persist partial assistant message if there's accumulated content
 			if ((conv.turnText || conv.toolInvocations.length > 0) && conv.onComplete) {
 				conv.onComplete(conv.turnText, event.sessionId, conv.toolInvocations);
@@ -143,9 +149,25 @@ export function sendMessage(
 			if (event.type === 'ask_user') {
 				setPendingInteraction(conv.cwd, { type: 'ask_user', questions: event.questions });
 			} else {
+				// Find the plan file from tool invocations (Write to ~/.claude/plans/*.md)
+				const planFilePath = findPlanFilePath(turnToolInvocations);
+				let planContent: string | undefined;
+				if (planFilePath) {
+					try {
+						planContent = readFileSync(planFilePath, 'utf-8');
+					} catch {
+						// Plan file may not exist yet or be unreadable
+					}
+				}
+
+				// Attach plan content to the event before broadcasting
+				event = { ...event, planContent, planFilePath };
+
 				setPendingInteraction(conv.cwd, {
 					type: 'exit_plan',
-					allowedPrompts: event.allowedPrompts
+					allowedPrompts: event.allowedPrompts,
+					planContent,
+					planFilePath
 				});
 			}
 
@@ -214,4 +236,15 @@ export function killProcess(conversationId: string): void {
 		conv.process.kill();
 		conv.process = null;
 	}
+}
+
+/** Scan tool invocations for a Write to ~/.claude/plans/*.md and return the file path */
+function findPlanFilePath(toolInvocations: ToolInvocation[]): string | undefined {
+	for (let i = toolInvocations.length - 1; i >= 0; i--) {
+		const t = toolInvocations[i];
+		if (t.tool === 'Write' && t.input.includes('/.claude/plans/') && t.input.endsWith('.md')) {
+			return t.input;
+		}
+	}
+	return undefined;
 }

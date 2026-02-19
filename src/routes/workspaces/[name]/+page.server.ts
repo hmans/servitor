@@ -27,6 +27,7 @@ export async function load({ params }) {
 	return {
 		workspace: ws,
 		messages,
+		executionMode: meta.executionMode ?? 'build',
 		pendingInteraction: meta.pendingInteraction ?? null,
 		commits,
 		committedDiff,

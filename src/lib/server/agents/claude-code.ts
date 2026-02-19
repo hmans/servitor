@@ -17,9 +17,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 			'stream-json',
 			'--output-format',
 			'stream-json',
-			'--verbose',
-			'--dangerously-skip-permissions'
+			'--verbose'
 		];
+
+		// Map execution mode to CLI permission flags
+		if (config.executionMode === 'plan') {
+			args.push('--permission-mode', 'plan');
+		} else {
+			args.push('--dangerously-skip-permissions');
+		}
 
 		if (config.sessionId) {
 			args.push('--resume', config.sessionId);

@@ -1,5 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { join } from 'path';
+import type { ExecutionMode } from './agents/types';
+
+export type { ExecutionMode };
 
 export type PendingInteraction =
 	| {
@@ -11,12 +14,18 @@ export type PendingInteraction =
 				multiSelect: boolean;
 			}>;
 	  }
-	| { type: 'exit_plan'; allowedPrompts?: Array<{ tool: string; prompt: string }> };
+	| {
+			type: 'exit_plan';
+			allowedPrompts?: Array<{ tool: string; prompt: string }>;
+			planContent?: string;
+			planFilePath?: string;
+	  };
 
 export interface ConversationMeta {
 	title: string;
 	agentType: string;
 	agentSessionId?: string;
+	executionMode?: ExecutionMode;
 	pendingInteraction?: PendingInteraction;
 	createdAt: string;
 }
@@ -112,7 +121,7 @@ export function appendMessage(worktreePath: string, msg: Message): void {
 
 export function updateConversationMeta(
 	worktreePath: string,
-	updates: Partial<Pick<ConversationMeta, 'agentSessionId'>>
+	updates: Partial<Pick<ConversationMeta, 'agentSessionId' | 'executionMode'>>
 ): void {
 	const meta = getConversationMeta(worktreePath);
 	if (!meta) return;

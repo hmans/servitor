@@ -1,6 +1,9 @@
+export type ExecutionMode = 'plan' | 'build';
+
 export interface AgentStartConfig {
 	cwd: string;
 	sessionId?: string;
+	executionMode: ExecutionMode;
 }
 
 export interface AskUserQuestion {
@@ -20,6 +23,8 @@ export type AgentEvent =
 			type: 'exit_plan';
 			toolUseId: string;
 			allowedPrompts?: Array<{ tool: string; prompt: string }>;
+			planContent?: string;
+			planFilePath?: string;
 			sessionId: string;
 	  }
 	| { type: 'message_complete'; text: string; sessionId: string }
