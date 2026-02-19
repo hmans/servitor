@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
 import { parse as parseYaml } from 'yaml';
@@ -53,6 +53,15 @@ function loadConfig(): ServitorConfig {
 		typeof yaml.worktreesDir === 'string'
 			? yaml.worktreesDir.replace(/^~/, homedir())
 			: join(homedir(), 'servitor-worktrees');
+
+	// Ensure .servitor/ directory exists with a .gitignore
+	const servitorDir = join(repoPath, '.servitor');
+	mkdirSync(servitorDir, { recursive: true });
+
+	const gitignorePath = join(servitorDir, '.gitignore');
+	if (!existsSync(gitignorePath)) {
+		writeFileSync(gitignorePath, '*\n!.gitignore\n');
+	}
 
 	return {
 		repoPath,
