@@ -1,17 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { getWorkspace } from '$lib/server/workspaces';
-import { getConversation } from '$lib/server/conversations';
 import { subscribe, isProcessing } from '$lib/server/agents/manager';
 
 export function GET({ params, request }) {
 	const ws = getWorkspace(params.name);
 	if (!ws) error(404, 'Workspace not found');
 
-	const convId = parseInt(params.convId);
-	const conv = getConversation(ws.worktreePath, convId);
-	if (!conv) error(404, 'Conversation not found');
-
-	const managerKey = `${params.name}:${convId}`;
+	const managerKey = params.name;
 
 	let unsubscribe: (() => void) | undefined;
 	let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -28,7 +23,7 @@ export function GET({ params, request }) {
 				}
 			};
 
-			send('connected', { conversationId: managerKey, processing: isProcessing(managerKey) });
+			send('connected', { workspace: managerKey, processing: isProcessing(managerKey) });
 
 			unsubscribe = subscribe(managerKey, (event) => {
 				send(event.type, event);
