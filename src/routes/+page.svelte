@@ -1,6 +1,10 @@
 <script lang="ts">
+	import { workspaceStatus } from '$lib/stores/workspaceStatus.svelte';
+
 	let { data } = $props();
 </script>
+
+<svelte:head><title>Servitor</title></svelte:head>
 
 <div>
 	<div class="mb-4 flex items-center justify-between">
@@ -22,7 +26,14 @@
 					href="/workspaces/{ws.name}"
 					class="block rounded-lg border border-zinc-800 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
 				>
-					<div class="font-medium">{ws.name}</div>
+					<div class="flex items-center gap-2 font-medium">
+						<span
+							class="inline-block h-1.5 w-1.5 shrink-0 rounded-full {workspaceStatus.isBusy(ws.name)
+								? 'bg-pink-500 animate-pulse'
+								: 'bg-zinc-700'}"
+						></span>
+						{ws.name}
+					</div>
 					<div class="mt-1 text-sm text-zinc-500">
 						<span class="font-mono">{ws.branch}</span>
 					</div>

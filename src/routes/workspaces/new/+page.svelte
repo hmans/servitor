@@ -4,6 +4,8 @@
 	let { form } = $props();
 </script>
 
+<svelte:head><title>New Workspace - Servitor</title></svelte:head>
+
 <div class="mx-auto max-w-lg">
 	<h2 class="mb-6 text-2xl font-bold">New Workspace</h2>
 

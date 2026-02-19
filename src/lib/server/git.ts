@@ -18,8 +18,9 @@ export function createWorktree(name: string): { branch: string; worktreePath: st
 	// Ensure parent directory exists
 	mkdirSync(join(config.worktreesDir, config.projectSlug), { recursive: true });
 
-	// Create branch from current HEAD and set up worktree
-	run(`git worktree add -b "${branch}" "${worktreePath}"`, config.repoPath);
+	// Create branch from the default branch (main/master) and set up worktree
+	const baseBranch = getDefaultBranch();
+	run(`git worktree add -b "${branch}" "${worktreePath}" "${baseBranch}"`, config.repoPath);
 
 	return { branch, worktreePath };
 }
@@ -39,6 +40,17 @@ export function removeWorktree(worktreePath: string, branch: string): void {
 }
 
 export function getDefaultBranch(): string {
+	// Prefer well-known default branch names over whatever HEAD points to,
+	// since the main worktree might be checked out on a feature branch.
+	for (const candidate of ['main', 'master']) {
+		try {
+			run(`git rev-parse --verify refs/heads/${candidate}`, config.repoPath);
+			return candidate;
+		} catch {
+			// Branch doesn't exist, try next
+		}
+	}
+	// Fall back to current HEAD
 	try {
 		return run('git symbolic-ref --short HEAD', config.repoPath);
 	} catch {

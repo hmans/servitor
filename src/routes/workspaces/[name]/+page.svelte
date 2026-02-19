@@ -147,6 +147,7 @@
 	});
 
 	// Auto-scroll: observe DOM mutations in the messages container
+	// Only auto-scroll if the user is already near the bottom (within 80px)
 	$effect(() => {
 		if (!messagesEl) return;
 		const el = messagesEl;
@@ -155,7 +156,10 @@
 		el.scrollTop = el.scrollHeight;
 
 		const observer = new MutationObserver(() => {
-			el.scrollTop = el.scrollHeight;
+			const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+			if (isNearBottom) {
+				el.scrollTop = el.scrollHeight;
+			}
 		});
 		observer.observe(el, { childList: true, subtree: true, characterData: true });
 
@@ -446,6 +450,7 @@
 
 		const content = input.trim();
 		input = '';
+		if (composerEl) composerEl.style.height = 'auto';
 		sending = true;
 		activity.setBusy(true);
 		errorMessage = '';
@@ -771,6 +776,8 @@
 	});
 </script>
 
+<svelte:head><title>{data.workspace.name} - Servitor</title></svelte:head>
+
 <!-- Shared snippet for rendering a question's options (used in both streaming and persisted views) -->
 {#snippet questionOptions(q: AskUserQuestion, toolUseId: string, allQuestions: AskUserQuestion[], interactive: boolean)}
 	{@const hasMarkdown = q.options.some((o) => o.markdown)}
@@ -962,6 +969,12 @@
 									{/if}
 								</div>
 							{/if}
+								{#if msg.toolInvocations?.length}
+									<div class="mb-1 text-xs text-zinc-600">
+										<span class="text-zinc-700">[tools]</span>
+										{Object.entries(msg.toolInvocations.reduce((acc, t) => { acc[t.tool] = (acc[t.tool] || 0) + 1; return acc; }, {} as Record<string, number>)).map(([tool, n]) => n > 1 ? tool + ' x' + n : tool).join(', ')}
+									</div>
+								{/if}
 								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
 								</div>
@@ -1194,6 +1207,11 @@
 					bind:value={input}
 					onkeydown={handleKeydown}
 					onpaste={handlePaste}
+					oninput={(e) => {
+						const el = e.currentTarget;
+						el.style.height = "auto";
+						el.style.height = Math.min(el.scrollHeight, 200) + "px";
+					}}
 					placeholder=""
 					rows="1"
 					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
