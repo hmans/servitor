@@ -26,6 +26,8 @@
 	});
 	let messagesEl: HTMLDivElement | undefined = $state();
 	let composerEl: HTMLTextAreaElement | undefined = $state();
+	let expandedThinking: Set<number> = $state(new Set());
+	let streamingThinkingExpanded = $state(false);
 	let eventSource: EventSource | null = null;
 
 	// Typewriter: progressively reveal streamed text word by word
@@ -784,19 +786,22 @@
 								</div>
 							{:else}
 								{#if msg.thinking}
-									<details class="group mb-2">
-										<summary class="flex cursor-pointer items-center gap-1.5 py-1">
-											<div class="h-2 w-2 rounded-full bg-zinc-700/50"></div>
-											<div class="h-1.5 w-1.5 rounded-full bg-zinc-700/30"></div>
-											<span class="text-xs text-zinc-600 group-open:hidden">💭</span>
-										</summary>
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div class="mb-2 cursor-pointer" onclick={() => { if (expandedThinking.has(i)) expandedThinking.delete(i); else expandedThinking.add(i); expandedThinking = expandedThinking; }}>
+									{#if expandedThinking.has(i)}
 										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
 											<div class="text-sm text-zinc-500">
 												<Markdown content={msg.thinking} />
 											</div>
 										</div>
-									</details>
-								{/if}
+									{:else}
+										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-3 py-2 text-center">
+											<span class="text-xs text-zinc-600">thinking..</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
 								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
 								</div>
@@ -808,18 +813,21 @@
 					{#if streamingParts.length > 0}
 						<div class="space-y-3">
 							{#if thinkingTypewriter.revealed}
-								<details class="group">
-									<summary class="flex cursor-pointer items-center gap-1.5 py-1">
-										<div class="h-2 w-2 rounded-full bg-zinc-700/50"></div>
-										<div class="h-1.5 w-1.5 rounded-full bg-zinc-700/30"></div>
-										<span class="text-xs text-zinc-600 group-open:hidden">💭</span>
-									</summary>
-									<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
-										<div class="text-sm text-zinc-500">
-											<Markdown content={thinkingTypewriter.revealed} />
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div class="cursor-pointer" onclick={() => streamingThinkingExpanded = !streamingThinkingExpanded}>
+									{#if streamingThinkingExpanded}
+										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
+											<div class="text-sm text-zinc-500">
+												<Markdown content={thinkingTypewriter.revealed} />
+											</div>
 										</div>
-									</div>
-								</details>
+									{:else}
+										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-3 py-2 text-center">
+											<span class="text-xs text-zinc-600">thinking..</span>
+										</div>
+									{/if}
+								</div>
 							{/if}
 							{#each streamingParts as part, i (i)}
 								{#if part.type === 'enter_plan'}
