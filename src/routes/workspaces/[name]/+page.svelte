@@ -925,7 +925,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<div class="h-14 w-14 shrink-0">
-					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} />
+					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} onclick={() => composerEl?.focus()} />
 				</div>
 				<textarea
 					bind:this={composerEl}

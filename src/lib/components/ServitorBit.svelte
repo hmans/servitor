@@ -2,7 +2,7 @@
 	import { Canvas } from '@threlte/core';
 	import ServitorBitScene from './ServitorBitScene.svelte';
 
-	let { pulse = 0, busy = false }: { pulse?: number; busy?: boolean } = $props();
+	let { pulse = 0, busy = false, onclick: onClickProp }: { pulse?: number; busy?: boolean; onclick?: () => void } = $props();
 
 	const activityEmojis = ['✨', '⚡', '💫', '🔥', '💡', '⭐'];
 
@@ -31,6 +31,7 @@
 	function onClick() {
 		extraPulse++;
 		spawnParticles(['♥️'], 1 + Math.floor(Math.random() * 2));
+		onClickProp?.();
 	}
 
 	// Spawn activity emojis on SSE pulses (throttled)

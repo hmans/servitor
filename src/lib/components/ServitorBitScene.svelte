@@ -59,10 +59,17 @@
 		mesh.rotation.y += delta * rotSpeed * ny;
 		mesh.rotation.z += delta * rotSpeed * nz;
 
-		// Float: gentle wandering, amplified when excited
-		const floatAmp = 0.05 + excitement * 0.25;
-		mesh.position.x = Math.sin(elapsed * 0.7) * floatAmp;
-		mesh.position.y = Math.cos(elapsed * 0.9) * floatAmp;
+		// Float: layered noise for organic wandering
+		const baseAmp = 0.15;
+		const excitedAmp = baseAmp + excitement * 0.3;
+		mesh.position.x =
+			Math.sin(elapsed * 0.7) * excitedAmp * 0.6 +
+			Math.sin(elapsed * 1.9) * excitedAmp * 0.3 +
+			Math.cos(elapsed * 3.1) * excitedAmp * 0.1;
+		mesh.position.y =
+			Math.cos(elapsed * 0.9) * excitedAmp * 0.6 +
+			Math.cos(elapsed * 2.3) * excitedAmp * 0.3 +
+			Math.sin(elapsed * 2.7) * excitedAmp * 0.1;
 
 		// Scale: pulse on excitement
 		const pulseScale = 1 + excitement * 0.25;
