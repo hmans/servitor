@@ -732,23 +732,24 @@
 					{#if streamingParts.length > 0}
 						{@const toolParts = streamingParts.filter((p) => p.type === 'tool_use')}
 						{@const lastTool = toolParts.length > 0 ? toolParts[toolParts.length - 1] : null}
+						{@const textParts = streamingParts.filter((p) => p.type === 'text')}
+						{@const latestText = textParts.length > 0 ? textParts[textParts.length - 1] : null}
+						{@const thinkingParts = streamingParts.filter((p) => p.type === 'thinking')}
+						{@const latestThinking = thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null}
 						<div class="space-y-3">
-							{#each streamingParts as part, i (i)}
-								{#if part.type === 'thinking'}
-									<details class="text-sm">
-										<summary
-											class="cursor-pointer text-amber-700 hover:text-amber-600"
-											>[thinking]</summary
-										>
-										<div class="mt-1 whitespace-pre-wrap pl-3 text-xs text-zinc-600">
-											{part.text}
-										</div>
-									</details>
-								{:else if part.type === 'text'}
-									<div class="text-sm text-zinc-300">
-										<Markdown content={part.text} />
+							{#if latestThinking}
+								<details class="text-sm">
+									<summary
+										class="cursor-pointer text-amber-700 hover:text-amber-600"
+										>[thinking]</summary
+									>
+									<div class="mt-1 whitespace-pre-wrap pl-3 text-xs text-zinc-600">
+										{latestThinking.text}
 									</div>
-								{:else if part.type === 'tool_use' && part === lastTool}
+								</details>
+							{/if}
+							{#each streamingParts as part, i (i)}
+								{#if part.type === 'tool_use' && part === lastTool}
 									<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
 										<span class="text-amber-600">[tool]</span>
 										<span class="text-zinc-500">{part.tool}</span>
@@ -890,6 +891,11 @@
 									</div>
 								{/if}
 							{/each}
+							{#if latestText}
+								<div class="text-sm text-zinc-300">
+									<Markdown content={latestText.text} />
+								</div>
+							{/if}
 							{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
 								<div class="pl-3">
 									<BrailleSpinner />
