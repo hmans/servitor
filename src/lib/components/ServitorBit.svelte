@@ -4,31 +4,45 @@
 
 	let { pulse = 0, busy = false }: { pulse?: number; busy?: boolean } = $props();
 
+	const activityEmojis = ['✨', '⚡', '💫', '🔥', '💡', '⭐'];
+
 	let extraPulse = $state(0);
-	let hearts: Array<{ id: number; x: number; y: number }> = $state([]);
-	let heartId = 0;
+	let particles: Array<{ id: number; x: number; y: number; emoji: string }> = $state([]);
+	let particleId = 0;
+	let lastPulse = 0;
+
+	function spawnParticles(emojis: string[], count: number) {
+		const newParticles: typeof particles = [];
+		for (let i = 0; i < count; i++) {
+			newParticles.push({
+				id: particleId++,
+				x: 25 + Math.random() * 50,
+				y: 20 + Math.random() * 40,
+				emoji: emojis[Math.floor(Math.random() * emojis.length)]
+			});
+		}
+		particles = [...particles, ...newParticles];
+
+		setTimeout(() => {
+			particles = particles.slice(count);
+		}, 2200);
+	}
 
 	function onClick() {
 		extraPulse++;
-
-		// Spawn 3-5 hearts at random positions around the center
-		const count = 3 + Math.floor(Math.random() * 3);
-		for (let i = 0; i < count; i++) {
-			hearts = [
-				...hearts,
-				{
-					id: heartId++,
-					x: 30 + Math.random() * 40,
-					y: 30 + Math.random() * 30
-				}
-			];
-		}
-
-		// Clean up hearts after animation
-		setTimeout(() => {
-			hearts = hearts.slice(count);
-		}, 2200);
+		spawnParticles(['♥️'], 1 + Math.floor(Math.random() * 2));
 	}
+
+	// Spawn activity emojis on SSE pulses (throttled)
+	$effect(() => {
+		if (pulse > lastPulse && pulse > 0) {
+			// Only spawn occasionally to avoid flooding
+			if (pulse % 5 === 0) {
+				spawnParticles(activityEmojis, 1 + Math.floor(Math.random() * 2));
+			}
+		}
+		lastPulse = pulse;
+	});
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -38,12 +52,12 @@
 		<ServitorBitScene pulse={pulse + extraPulse} {busy} />
 	</Canvas>
 
-	{#each hearts as heart (heart.id)}
+	{#each particles as p (p.id)}
 		<span
 			class="pointer-events-none absolute animate-float-up text-xs"
-			style="left: {heart.x}%; top: {heart.y}%"
+			style="left: {p.x}%; top: {p.y}%"
 		>
-			&#x2764;
+			{p.emoji}
 		</span>
 	{/each}
 </div>
@@ -62,6 +76,5 @@
 
 	:global(.animate-float-up) {
 		animation: float-up 2s ease-out forwards;
-		color: #ef4444;
 	}
 </style>

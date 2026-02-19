@@ -261,6 +261,7 @@
 		const content = input.trim();
 		input = '';
 		sending = true;
+		activity.setBusy(true);
 		errorMessage = '';
 
 		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
@@ -380,6 +381,7 @@
 
 		// Add as a local message immediately
 		sending = true;
+		activity.setBusy(true);
 		localMessages = [
 			...localMessages,
 			{ role: 'user', content, askUserAnswers, ts: new Date().toISOString() }
@@ -411,6 +413,7 @@
 		delete previewOption[toolUseId];
 
 		sending = true;
+		activity.setBusy(true);
 		localMessages = [
 			...localMessages,
 			{ role: 'user', content, ts: new Date().toISOString() }
@@ -452,6 +455,7 @@
 	async function approveEnterPlan(approved: boolean) {
 		streamingParts = [];
 		sending = true;
+		activity.setBusy(true);
 
 		if (approved) {
 			await setMode('plan');
@@ -481,6 +485,7 @@
 	async function approvePlan(approved: boolean) {
 		streamingParts = [];
 		sending = true;
+		activity.setBusy(true);
 
 		// Switch from plan → build on approval
 		if (approved && executionMode === 'plan') {
