@@ -7,6 +7,8 @@
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
 	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 
+	import type { AskUserQuestion } from '$lib/server/agents/types';
+
 	let { data } = $props();
 
 	let infoPaneWidth = $state(400);
@@ -22,6 +24,7 @@
 	let streamingParts: Array<
 		| { type: 'text'; text: string }
 		| { type: 'tool_use'; tool: string; input: string; toolUseId: string }
+		| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[]; answered: boolean }
 	> = $state([]);
 
 	// Local copy of messages for optimistic updates
@@ -87,6 +90,18 @@
 			streamingParts = [
 				...streamingParts,
 				{ type: 'tool_use', tool: event.tool, input: event.input ?? '', toolUseId: event.toolUseId }
+			];
+			scrollToBottom();
+		});
+
+		es.addEventListener('ask_user', (e) => {
+			const event = JSON.parse(e.data);
+			console.log('[claude] ask_user', event);
+			processAlive = true;
+			sending = false;
+			streamingParts = [
+				...streamingParts,
+				{ type: 'ask_user', toolUseId: event.toolUseId, questions: event.questions, answered: false }
 			];
 			scrollToBottom();
 		});
@@ -158,6 +173,27 @@
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Network error';
+		}
+	}
+
+	async function answerQuestion(toolUseId: string, answers: Record<string, string>) {
+		try {
+			const res = await fetch(`/api/workspaces/${wsName}/answer`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ toolUseId, answers })
+			});
+
+			if (res.ok) {
+				// Mark the question as answered
+				streamingParts = streamingParts.map((part) =>
+					part.type === 'ask_user' && part.toolUseId === toolUseId
+						? { ...part, answered: true }
+						: part
+				);
+			}
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to send answer';
 		}
 	}
 
@@ -248,11 +284,37 @@
 										<span class="truncate text-zinc-700">{part.input}</span>
 									{/if}
 								</div>
+							{:else if part.type === 'ask_user'}
+								<div class="my-3 border border-zinc-700 rounded p-4">
+									{#each part.questions as q}
+										<div class="mb-3 last:mb-0">
+											<div class="text-xs text-amber-600 uppercase tracking-wide mb-1">{q.header}</div>
+											<div class="text-sm text-zinc-200 mb-3">{q.question}</div>
+											{#if part.answered}
+												<div class="text-xs text-zinc-500 italic">Answered</div>
+											{:else}
+												<div class="flex flex-wrap gap-2">
+													{#each q.options as option}
+														<button
+															onclick={() => answerQuestion(part.toolUseId, { [q.question]: option.label })}
+															class="rounded border border-zinc-600 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-pink-500 hover:text-pink-400"
+															title={option.description}
+														>
+															{option.label}
+														</button>
+													{/each}
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
 							{/if}
 						{/each}
-						<div class="pl-3">
-							<BrailleSpinner />
-						</div>
+						{#if !streamingParts.some((p) => p.type === 'ask_user' && !p.answered)}
+							<div class="pl-3">
+								<BrailleSpinner />
+							</div>
+						{/if}
 					</div>
 				{:else if sending}
 					<div class="pl-3">

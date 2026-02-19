@@ -2,10 +2,18 @@ export interface AgentStartConfig {
 	cwd: string;
 }
 
+export interface AskUserQuestion {
+	question: string;
+	header: string;
+	options: Array<{ label: string; description: string }>;
+	multiSelect: boolean;
+}
+
 export type AgentEvent =
 	| { type: 'text_delta'; text: string }
 	| { type: 'tool_use_start'; tool: string; toolUseId: string; input: string }
 	| { type: 'tool_result'; toolUseId: string }
+	| { type: 'ask_user'; toolUseId: string; questions: AskUserQuestion[] }
 	| { type: 'message_complete'; text: string; sessionId: string }
 	| { type: 'error'; message: string }
 	| { type: 'done'; sessionId: string };
@@ -13,6 +21,8 @@ export type AgentEvent =
 export interface AgentProcess {
 	/** Send a user message into the running process */
 	send(message: string): void;
+	/** Send a tool result back to the running process */
+	sendToolResult(toolUseId: string, result: string): void;
 	onEvent(callback: (event: AgentEvent) => void): void;
 	kill(): void;
 }

@@ -136,6 +136,13 @@ export function debugState(): Array<{ conversationId: string; hasProcess: boolea
 	}));
 }
 
+export function sendToolResult(conversationId: string, toolUseId: string, result: string): void {
+	const conv = active.get(conversationId);
+	if (conv?.process) {
+		conv.process.sendToolResult(toolUseId, result);
+	}
+}
+
 export function killProcess(conversationId: string): void {
 	const conv = active.get(conversationId);
 	if (conv?.process) {

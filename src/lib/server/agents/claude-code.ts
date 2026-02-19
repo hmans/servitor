@@ -101,6 +101,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 				});
 				proc.stdin.write(payload + '\n');
 			},
+			sendToolResult(toolUseId: string, result: string) {
+				const payload = JSON.stringify({
+					type: 'tool_result',
+					tool_use_id: toolUseId,
+					result
+				});
+				proc.stdin.write(payload + '\n');
+			},
 			onEvent(callback: (event: AgentEvent) => void) {
 				listeners.push(callback);
 			},
@@ -133,12 +141,27 @@ function parseClaudeEvent(data: Record<string, unknown>): AgentEvent[] {
 			}
 			if (block.type === 'tool_use') {
 				const input = block.input as Record<string, unknown> | undefined;
-				events.push({
-					type: 'tool_use_start',
-					tool: block.name as string,
-					toolUseId: block.id as string,
-					input: summarizeToolInput(block.name as string, input)
-				});
+
+				if (block.name === 'AskUserQuestion') {
+					const questions = (input?.questions ?? []) as Array<{
+						question: string;
+						header: string;
+						options: Array<{ label: string; description: string }>;
+						multiSelect: boolean;
+					}>;
+					events.push({
+						type: 'ask_user',
+						toolUseId: block.id as string,
+						questions
+					});
+				} else {
+					events.push({
+						type: 'tool_use_start',
+						tool: block.name as string,
+						toolUseId: block.id as string,
+						input: summarizeToolInput(block.name as string, input)
+					});
+				}
 			}
 		}
 	}
