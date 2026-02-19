@@ -11,6 +11,7 @@
 	import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
 	import type { Attachment } from '$lib/server/conversations';
 	import { activity } from '$lib/stores/activity.svelte';
+	import { linkifyUrls } from '$lib/linkify';
 
 	let { data } = $props();
 
@@ -927,7 +928,7 @@
 										<div
 											class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white"
 										>
-											{msg.content}
+											{@html linkifyUrls(msg.content)}
 										</div>
 									{/if}
 									{#if msg.attachments?.length}
