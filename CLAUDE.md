@@ -96,4 +96,28 @@ The `result` event that signals end-of-turn may have an empty/falsy `result` tex
 - Assistant messages rendered via the `Markdown` component with `leading-[1.8]` line height
 - Tool invocations shown as a collapsible `[tools] Read x4, Bash x2` summary above the assistant message text
 - During streaming, only the latest tool call is shown with a `+N more` badge
+- Streaming text is revealed word-by-word via a client-side typewriter effect (20ms per word)
 - Resizable panes via `PaneResizer` component
+
+## Bit (ServitorBit)
+
+Bit is Servitor's animated mascot — a low-poly pink icosahedron inspired by the "Bit" character from Tron. It lives in the composer area as the input prompt and reacts to agent activity.
+
+### Architecture
+
+- **`ServitorBit.svelte`** — Outer wrapper: Threlte `Canvas`, click handler (spawns ♥️ hearts + focuses composer), activity emoji spawner (✨⚡💫🔥💡⭐ on SSE pulses), `onclick` callback prop
+- **`ServitorBitScene.svelte`** — Inner scene: `MeshStandardMaterial` with `flatShading`, ambient + directional lights, per-frame animation via `useTask`
+- **`activity.svelte.ts`** — Svelte 5 reactive store bridging SSE events to Bit: `pulseCount` (incremented on SSE events + typewriter word reveals), `busy` flag (true while agent is working)
+- Geometry: `IcosahedronGeometry(1, 0).toNonIndexed()` with `computeVertexNormals()` for solid flat-shaded faces
+
+### Animation tiers
+
+- **Idle**: very slow rotation (0.15 rad/s), gentle noise-based floating (3 layered sine frequencies per axis)
+- **Busy** (`activity.busy`): faster rotation (3.0 + idle), slight emissive glow — set immediately on send, cleared on `message_complete`/`done`
+- **Excited** (`activity.pulse()`): fast tumbling rotation (8.0 + busy + idle), scale pulse, strong emissive glow, noise-driven rotation across all 3 axes
+
+### Interaction
+
+- Click: triggers excitement spike + spawns 1-2 ♥️ hearts that float up and fade + focuses composer
+- Activity emojis spawn every 5th SSE pulse
+- The typewriter effect also pulses Bit on each revealed word

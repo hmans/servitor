@@ -2,9 +2,7 @@
 	import { Canvas } from '@threlte/core';
 	import ServitorBitScene from './ServitorBitScene.svelte';
 
-	let { pulse = 0, busy = false, onclick: onClickProp }: { pulse?: number; busy?: boolean; onclick?: () => void } = $props();
-
-	const activityEmojis = ['✨', '⚡', '💫', '🔥', '💡', '⭐'];
+	let { pulse = 0, busy = false, toolEmojiId = 0, toolEmoji = '', onclick: onClickProp }: { pulse?: number; busy?: boolean; toolEmojiId?: number; toolEmoji?: string; onclick?: () => void } = $props();
 
 	let extraPulse = $state(0);
 	let particles: Array<{ id: number; x: number; y: number; emoji: string }> = $state([]);
@@ -34,15 +32,13 @@
 		onClickProp?.();
 	}
 
-	// Spawn activity emojis on SSE pulses (throttled)
+	// Spawn tool emojis when tools are invoked
+	let lastToolEmojiId = 0;
 	$effect(() => {
-		if (pulse > lastPulse && pulse > 0) {
-			// Only spawn occasionally to avoid flooding
-			if (pulse % 5 === 0) {
-				spawnParticles(activityEmojis, 1 + Math.floor(Math.random() * 2));
-			}
+		if (toolEmojiId > lastToolEmojiId && toolEmoji) {
+			spawnParticles([toolEmoji], 1);
 		}
-		lastPulse = pulse;
+		lastToolEmojiId = toolEmojiId;
 	});
 </script>
 
