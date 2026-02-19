@@ -1,7 +1,5 @@
-import { db } from '$lib/server/db';
-import { workspace } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
-import { createWorktree } from '$lib/server/git';
+import { createWorkspace } from '$lib/server/workspaces';
 
 export const actions = {
 	default: async ({ request }) => {
@@ -17,22 +15,13 @@ export const actions = {
 			});
 		}
 
-		let branch: string;
-		let worktreePath: string;
-
 		try {
-			({ branch, worktreePath } = createWorktree(name));
+			createWorkspace(name);
 		} catch (e) {
 			const message = e instanceof Error ? e.message : 'Failed to create worktree.';
 			return fail(400, { error: message, name });
 		}
 
-		const created = db
-			.insert(workspace)
-			.values({ name, branch, worktreePath })
-			.returning()
-			.get();
-
-		redirect(303, `/workspaces/${created.id}`);
+		redirect(303, `/workspaces/${name}`);
 	}
 };

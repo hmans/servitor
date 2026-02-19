@@ -1,12 +1,17 @@
 import { error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { conversation } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { getWorkspace } from '$lib/server/workspaces';
+import { getConversation } from '$lib/server/conversations';
 import { subscribe, isProcessing } from '$lib/server/agents/manager';
 
 export function GET({ params, request }) {
-	const conv = db.select().from(conversation).where(eq(conversation.id, params.id)).get();
+	const ws = getWorkspace(params.name);
+	if (!ws) error(404, 'Workspace not found');
+
+	const convId = parseInt(params.convId);
+	const conv = getConversation(ws.worktreePath, convId);
 	if (!conv) error(404, 'Conversation not found');
+
+	const managerKey = `${params.name}:${convId}`;
 
 	let unsubscribe: (() => void) | undefined;
 	let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -23,9 +28,9 @@ export function GET({ params, request }) {
 				}
 			};
 
-			send('connected', { conversationId: params.id, processing: isProcessing(params.id) });
+			send('connected', { conversationId: managerKey, processing: isProcessing(managerKey) });
 
-			unsubscribe = subscribe(params.id, (event) => {
+			unsubscribe = subscribe(managerKey, (event) => {
 				send(event.type, event);
 			});
 

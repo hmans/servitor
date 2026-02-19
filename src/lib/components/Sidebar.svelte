@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	type Conversation = { id: string; workspaceId: string; title: string };
+	type Conversation = { id: number; title: string };
 	type Workspace = {
-		id: string;
 		name: string;
 		branch: string;
 		conversations: Conversation[];
@@ -11,12 +10,12 @@
 
 	let { workspaces, projectName }: { workspaces: Workspace[]; projectName: string } = $props();
 
-	function isActiveWorkspace(wsId: string) {
-		return page.url.pathname.startsWith(`/workspaces/${wsId}`);
+	function isActiveWorkspace(wsName: string) {
+		return page.url.pathname.startsWith(`/workspaces/${wsName}`);
 	}
 
-	function isActiveConversation(convId: string) {
-		return page.url.searchParams.get('conv') === convId;
+	function isActiveConversation(convId: number) {
+		return page.url.searchParams.get('conv') === String(convId);
 	}
 </script>
 
@@ -29,8 +28,8 @@
 		{#each workspaces as ws}
 			<div class="mb-1">
 				<a
-					href="/workspaces/{ws.id}"
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors {isActiveWorkspace(ws.id)
+					href="/workspaces/{ws.name}"
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors {isActiveWorkspace(ws.name)
 						? 'text-zinc-100'
 						: 'text-zinc-400 hover:text-zinc-200'}"
 				>
@@ -41,7 +40,7 @@
 				<div class="ml-2 border-l border-zinc-800 pl-2">
 					{#each ws.conversations as conv}
 						<a
-							href="/workspaces/{ws.id}?conv={conv.id}"
+							href="/workspaces/{ws.name}?conv={conv.id}"
 							class="block truncate rounded-md px-2 py-1.5 text-sm transition-colors {isActiveConversation(conv.id)
 								? 'text-zinc-100'
 								: 'text-zinc-500 hover:text-zinc-300'}"

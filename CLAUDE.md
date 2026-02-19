@@ -13,8 +13,7 @@
 
 - **Framework:** SvelteKit (Svelte 5 with runes)
 - **Styling:** Tailwind CSS v4, monospace TUI-inspired aesthetic (Spline Sans Mono font)
-- **Database:** SQLite via better-sqlite3, managed with Drizzle ORM
-- **Schema migrations:** `pnpm db:push` (drizzle-kit push)
+- **Storage:** No database — workspaces derived from git worktrees, conversations stored as JSONL files
 - **Markdown:** `marked` library with custom renderer (links open in new tabs)
 - **Package manager:** pnpm
 
@@ -30,37 +29,46 @@
 
 ## Workspaces
 
-- User can create, interact with, close etc. workspaces
-- Each workspace is a git worktree of the repository
-- Workspaces can contain one or more conversations (agent sessions)
+- Derived from git worktrees — `git worktree list --porcelain` filtered by `servitor/*` branches
+- `src/lib/server/workspaces.ts`: `listWorkspaces()`, `getWorkspace(name)`, `createWorkspace(name)`, `deleteWorkspace(name)`
+- No database state — if the worktree exists, the workspace is active
+
+## Conversations & Messages
+
+- Stored as flat files inside each worktree's `.servitor/` directory
+- Directory structure:
+  ```
+  .servitor/conversations/
+    1/meta.json          # {id, title, agentType, agentSessionId?, createdAt}
+    1/messages.jsonl     # one JSON object per line: {role, content, toolInvocations?, ts}
+    2/meta.json
+    2/messages.jsonl
+  ```
+- `src/lib/server/conversations.ts`: `listConversations()`, `createConversation()`, `loadMessages()`, `appendMessage()`
+- Messages are append-only (JSONL). No locking needed — one agent per conversation, user messages written synchronously.
 
 ## Route Structure
 
 - `/` — Workspace list (landing page)
 - `/workspaces/new` — Create workspace
-- `/workspaces/[id]` — Workspace chat interface
-- `/api/conversations/[id]/*` — Conversation API endpoints
+- `/workspaces/[name]` — Workspace chat interface (e.g. `/workspaces/fix-bug`)
+- `/api/workspaces/[name]/conversations/[convId]/*` — Conversation API endpoints
 
 ## Agent Architecture
 
 - Agents are spawned as persistent child processes (currently Claude Code CLI via `claude -p --input-format stream-json --output-format stream-json`)
 - The agent manager (`src/lib/server/agents/manager.ts`) maintains in-memory state per conversation: the running process, event listeners, and accumulated tool invocations
+- Manager key format: `"workspace-name:convId"` (e.g. `"fix-bug:1"`)
 - Events flow: Agent process -> Manager (broadcasts) -> SSE endpoint -> Client EventSource
 - Key agent events: `text_delta`, `tool_use_start`, `message_complete`, `done`
 - `message_complete` fires at the end of each turn (process stays alive); `done` fires only when the process exits
-- The `onComplete` callback persists the assistant message + tool invocations to the DB
-
-## Database Schema
-
-- **workspace** — name, branch, worktree_path, status
-- **conversation** — belongs to workspace, has agentType + agentSessionId
-- **message** — belongs to conversation, has role (user/assistant/system/tool), content, and optional `tool_invocations` (JSON array of `{ tool, toolUseId, input }`)
+- The `onComplete` callback persists the assistant message + tool invocations via `appendMessage()`
 
 ## SSE Streaming
 
-- Each conversation has an SSE endpoint at `/api/conversations/[id]/stream`
+- Each conversation has an SSE endpoint at `/api/workspaces/[name]/conversations/[convId]/stream`
 - Client subscribes via `EventSource` and accumulates streaming parts (text + tool_use) into reactive state
-- On `message_complete`, streaming state is cleared and the page refreshes from the DB via `invalidateAll()`
+- On `message_complete`, streaming state is cleared and the page refreshes from JSONL files via `invalidateAll()`
 - The `connected` event includes a `processing` flag so the UI can pick up in-progress state on reconnect
 
 ## UI Conventions

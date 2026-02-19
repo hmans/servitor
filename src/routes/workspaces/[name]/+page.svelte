@@ -11,7 +11,7 @@
 
 	let infoPaneWidth = $state(400);
 	let input = $state('');
-	let sendingConvId = $state<string | null>(null);
+	let sendingConvId = $state<number | null>(null);
 	let processAlive = $state(false);
 	let errorMessage = $state('');
 	let messagesEl: HTMLDivElement | undefined = $state();
@@ -25,8 +25,12 @@
 	> = $state([]);
 
 	// Local copy of messages for optimistic updates
-	let localMessages: Array<{ id: string; role: string; content: string; toolInvocations: string | null; createdAt: Date }> =
-		$state([]);
+	let localMessages: Array<{
+		role: string;
+		content: string;
+		toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
+		ts: string;
+	}> = $state([]);
 
 	// Sync from server data when it changes
 	$effect(() => {
@@ -47,6 +51,8 @@
 		});
 	}
 
+	const wsName = $derived(data.workspace.name);
+
 	// SSE lifecycle
 	$effect(() => {
 		const convId = data.activeConversationId;
@@ -57,7 +63,7 @@
 		sendingConvId = null;
 		processAlive = false;
 
-		const es = new EventSource(`/api/conversations/${convId}/stream`);
+		const es = new EventSource(`/api/workspaces/${wsName}/conversations/${convId}/stream`);
 
 		es.addEventListener('connected', (e) => {
 			const event = JSON.parse(e.data);
@@ -136,12 +142,12 @@
 
 		localMessages = [
 			...localMessages,
-			{ id: `_optimistic_${Date.now()}`, role: 'user', content, toolInvocations: null, createdAt: new Date() }
+			{ role: 'user', content, ts: new Date().toISOString() }
 		];
 		scrollToBottom();
 
 		try {
-			const res = await fetch(`/api/conversations/${data.activeConversationId}/messages`, {
+			const res = await fetch(`/api/workspaces/${wsName}/conversations/${data.activeConversationId}/messages`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ content })
@@ -203,15 +209,14 @@
 				</div>
 			{:else}
 				<div class="space-y-6 leading-[1.8]">
-					{#each localMessages as msg (msg.id)}
+					{#each localMessages as msg, i (i)}
 						<div class="group">
 							{#if msg.role === 'user'}
 								<div class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white">{msg.content}</div>
 							{:else}
 								{#if msg.toolInvocations}
-									{@const tools = JSON.parse(msg.toolInvocations) as Array<{ tool: string; toolUseId: string; input: string }>}
 									<div class="space-y-1 py-1">
-										{#each tools as t (t.toolUseId)}
+										{#each msg.toolInvocations as t (t.toolUseId)}
 											<div class="flex items-center gap-2 pl-3 text-sm text-zinc-600">
 												<span class="text-amber-600">[tool]</span>
 												<span class="text-zinc-500">{t.tool}</span>

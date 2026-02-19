@@ -1,8 +1,6 @@
-import { db } from '$lib/server/db';
-import { workspace } from '$lib/server/db/schema';
-import { asc } from 'drizzle-orm';
+import { listWorkspaces } from '$lib/server/workspaces';
 
 export async function load() {
-	const workspaces = db.select().from(workspace).orderBy(asc(workspace.name)).all();
+	const workspaces = listWorkspaces();
 	return { workspaces };
 }

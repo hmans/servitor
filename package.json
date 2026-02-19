@@ -14,11 +14,7 @@
 		"format": "prettier --write .",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test",
-		"db:push": "drizzle-kit push",
-		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio"
+		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
@@ -28,11 +24,8 @@
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",
-		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^24",
 		"@vitest/browser-playwright": "^4.0.18",
-		"drizzle-kit": "^0.31.8",
-		"drizzle-orm": "^0.45.1",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
@@ -52,13 +45,11 @@
 	},
 	"dependencies": {
 		"@fontsource-variable/spline-sans-mono": "^5.2.8",
-		"better-sqlite3": "^12.6.2",
 		"marked": "^17.0.2",
 		"yaml": "^2.8.2"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"better-sqlite3",
 			"esbuild"
 		]
 	}
