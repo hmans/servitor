@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/spline-sans-mono';
 
+@plugin '@iconify/tailwind4' {
+	scale: 1.2;
+}
+
 @theme {
 	--font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
 }
