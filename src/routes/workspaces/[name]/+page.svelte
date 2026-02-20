@@ -32,8 +32,18 @@
 	$effect(() => {
 		executionMode = (data.executionMode as ExecutionMode) ?? 'build';
 	});
+	let stuckToBottom = $state(true);
+	let isProgrammaticScroll = false;
+
 	let messagesEl: HTMLDivElement | undefined = $state();
 	let composerEl: HTMLTextAreaElement | undefined = $state();
+
+	function scrollToBottom() {
+		if (!messagesEl) return;
+		isProgrammaticScroll = true;
+		messagesEl.scrollTop = messagesEl.scrollHeight;
+		requestAnimationFrame(() => { isProgrammaticScroll = false; });
+	}
 	let expandedThinking: Set<number> = $state(new Set());
 	let streamingThinkingExpanded = $state(false);
 	let eventSource: EventSource | null = null;
@@ -147,24 +157,49 @@
 		}
 	});
 
-	// Auto-scroll: observe DOM mutations in the messages container
-	// Only auto-scroll if the user is already near the bottom (within 80px)
+	// Auto-scroll: when stuck to bottom, scroll unconditionally on any DOM mutation.
+	// User scroll intent is detected via a scroll event listener.
 	$effect(() => {
 		if (!messagesEl) return;
 		const el = messagesEl;
 
-		// Scroll on mount / data refresh
-		el.scrollTop = el.scrollHeight;
+		// Scroll to bottom on mount
+		tick().then(() => {
+			stuckToBottom = true;
+			scrollToBottom();
+		});
 
+		// When stuck, scroll unconditionally on any DOM mutation
 		const observer = new MutationObserver(() => {
-			const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-			if (isNearBottom) {
-				el.scrollTop = el.scrollHeight;
-			}
+			if (stuckToBottom) scrollToBottom();
 		});
 		observer.observe(el, { childList: true, subtree: true, characterData: true });
 
-		return () => observer.disconnect();
+		// Detect user scroll intent via direction: scroll-up instantly unsticks,
+		// scroll-down near the bottom re-sticks.
+		let lastScrollTop = el.scrollTop;
+		function handleScroll() {
+			const currentTop = el.scrollTop;
+			if (isProgrammaticScroll) {
+				lastScrollTop = currentTop;
+				return;
+			}
+			const scrolledUp = currentTop < lastScrollTop;
+			lastScrollTop = currentTop;
+
+			if (scrolledUp) {
+				stuckToBottom = false;
+			} else {
+				const nearBottom = el.scrollHeight - currentTop - el.clientHeight < 80;
+				stuckToBottom = nearBottom;
+			}
+		}
+		el.addEventListener('scroll', handleScroll, { passive: true });
+
+		return () => {
+			observer.disconnect();
+			el.removeEventListener('scroll', handleScroll);
+		};
 	});
 
 	// Focus composer on every navigation
@@ -334,6 +369,10 @@
 			// This prevents a flash where neither streaming nor persisted text is visible.
 			await invalidateAll();
 			streamingParts = [];
+
+			stuckToBottom = true;
+			await tick();
+			scrollToBottom();
 		});
 
 		es.addEventListener('done', async () => {
@@ -361,6 +400,10 @@
 			if (!hasPendingInteraction) {
 				streamingParts = [];
 			}
+
+			stuckToBottom = true;
+			await tick();
+			scrollToBottom();
 		});
 
 		es.addEventListener('error', (e) => {
@@ -484,6 +527,7 @@
 			pendingAttachments = [];
 		}
 
+		stuckToBottom = true;
 		localMessages = [
 			...localMessages,
 			{
@@ -624,6 +668,7 @@
 		// Add as a local message immediately
 		sending = true;
 		activity.setBusy(true);
+		stuckToBottom = true;
 		localMessages = [
 			...localMessages,
 			{ role: 'user', content, askUserAnswers, ts: new Date().toISOString() }
@@ -656,6 +701,7 @@
 
 		sending = true;
 		activity.setBusy(true);
+		stuckToBottom = true;
 		localMessages = [
 			...localMessages,
 			{ role: 'user', content, ts: new Date().toISOString() }
@@ -707,6 +753,7 @@
 			? 'Yes, please plan first.'
 			: 'No, just proceed with implementation.';
 
+		stuckToBottom = true;
 		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
 
 		try {
@@ -738,6 +785,7 @@
 			? 'Plan approved. Proceed with the implementation.'
 			: 'Plan rejected. Please revise the plan.';
 
+		stuckToBottom = true;
 		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
 
 		try {
@@ -909,7 +957,8 @@
 		</div>
 
 		<!-- Messages -->
-		<div bind:this={messagesEl} class="flex-1 overflow-auto py-3">
+		<div class="relative flex-1">
+		<div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3">
 			<div class="flex min-h-full flex-col justify-end">
 			{#if localMessages.length === 0 && !sending}
 				<div class="flex h-full items-center justify-center">
@@ -1164,6 +1213,19 @@
 				</div>
 			{/if}
 			</div>
+		</div>
+
+		{#if !stuckToBottom}
+			<button
+				onclick={() => { stuckToBottom = true; scrollToBottom(); }}
+				class="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded border
+					   border-zinc-700 bg-zinc-900/90 px-3 py-1 text-xs text-zinc-400
+					   backdrop-blur-sm transition-colors hover:border-pink-500
+					   hover:text-pink-400"
+			>
+				[scroll to bottom]
+			</button>
+		{/if}
 		</div>
 
 		<!-- Error -->
