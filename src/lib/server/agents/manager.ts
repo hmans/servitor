@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { ClaudeCodeAdapter } from './claude-code';
 import type { AgentAdapter, AgentEvent, AgentProcess, ExecutionMode, MessageContent } from './types';
 import { setPendingInteraction, type ToolInvocation } from '$lib/server/conversations';
+import { logger } from '../logger';
 
 export type { ToolInvocation };
 
@@ -283,6 +284,18 @@ export function killProcess(conversationId: string): void {
 		conv.process = null;
 		broadcastStatus(conversationId, false);
 	}
+}
+
+/** Kill all active agent processes (for graceful shutdown) */
+export function killAll(): void {
+	for (const [id, conv] of active) {
+		if (conv.process) {
+			logger.info({ workspace: id }, 'Killing agent process');
+			conv.process.kill();
+			conv.process = null;
+		}
+	}
+	active.clear();
 }
 
 /** Scan tool invocations for a Write to ~/.claude/plans/*.md and return the file path */

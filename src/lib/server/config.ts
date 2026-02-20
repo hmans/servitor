@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
 import { parse as parseYaml } from 'yaml';
+import { logger } from './logger';
 
 export interface ServitorConfig {
 	/** Absolute path to the git repository root */
@@ -42,7 +43,7 @@ function loadConfig(): ServitorConfig {
 		try {
 			yaml = parseYaml(readFileSync(yamlPath, 'utf-8')) ?? {};
 		} catch (e) {
-			console.warn(`[config] Failed to parse ${yamlPath}, using defaults:`, e);
+			logger.warn({ err: e, path: yamlPath }, 'Failed to parse config, using defaults');
 		}
 	}
 

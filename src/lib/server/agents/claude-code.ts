@@ -1,13 +1,14 @@
 import { spawn, execSync } from 'child_process';
 import type { AgentAdapter, AgentProcess, AgentStartConfig, AgentEvent, MessageContent } from './types';
 import { parseClaudeEvent } from './parse-events';
+import { logger } from '../logger';
 
 // Resolve the full path to claude at module load time
 let claudePath = 'claude';
 try {
 	claudePath = execSync('which claude', { encoding: 'utf-8' }).trim();
 } catch {
-	console.warn('[claude-code] could not resolve claude path, using "claude"');
+	logger.warn('Could not resolve claude path, using "claude"');
 }
 
 export class ClaudeCodeAdapter implements AgentAdapter {
