@@ -79,7 +79,7 @@
 	aria-valuenow={width}
 	aria-valuemin={min}
 	aria-valuemax={max}
-	class="group relative flex shrink-0 cursor-col-resize items-center justify-center px-[3px]"
+	class="group relative flex shrink-0 cursor-col-resize items-center justify-center bg-zinc-800 p-0.25"
 	{onpointerdown}
 	{onpointermove}
 	onpointerup={stopDrag}
@@ -87,9 +87,6 @@
 	{onkeydown}
 >
 	<div
-		class={[
-			"h-full w-px transition-colors",
-			dragging ? "bg-blue-500" : "bg-zinc-800 group-hover:bg-zinc-600"
-		]}
+		class={['h-full w-px transition-colors', dragging ? 'bg-zinc-500' : ' group-hover:bg-zinc-500']}
 	></div>
 </div>
