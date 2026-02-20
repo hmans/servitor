@@ -16,7 +16,8 @@
 	} = $props();
 
 	// Restore from localStorage on mount
-	if (browser && storageKey) {
+	$effect.pre(() => {
+		if (!browser || !storageKey) return;
 		const stored = localStorage.getItem(storageKey);
 		if (stored != null) {
 			const parsed = Number(stored);
@@ -24,7 +25,7 @@
 				width = Math.min(max, Math.max(min, parsed));
 			}
 		}
-	}
+	});
 
 	// Persist to localStorage on change
 	$effect(() => {

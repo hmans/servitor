@@ -5,7 +5,7 @@ const config = {
 	kit: {
 		adapter: adapter({ precompress: false }),
 		csrf: {
-			checkOrigin: false
+			trustedOrigins: ['*']
 		}
 	}
 };
