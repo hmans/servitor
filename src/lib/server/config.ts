@@ -12,7 +12,9 @@ export interface ServitorConfig {
   projectName: string;
   /** Filesystem-safe slug derived from projectName */
   projectSlug: string;
-  /** Base directory for all worktrees. Default: $HOME/servitor-worktrees */
+  /** Port for the Servitor server. Default: 5555 */
+  port: number;
+  /** Base directory for all worktrees. Default: $HOME/.servitor/worktrees */
   worktreesDir: string;
 }
 
@@ -47,12 +49,23 @@ function loadConfig(): ServitorConfig {
     }
   }
 
+  // Support nested `servitor:` key from .servitor.yml
+  const servitorYaml = (typeof yaml.servitor === 'object' && yaml.servitor !== null
+    ? yaml.servitor
+    : {}) as Record<string, unknown>;
+
   const projectName = typeof yaml.name === 'string' ? yaml.name : basename(repoPath);
 
+  const port =
+    typeof servitorYaml.port === 'number'
+      ? servitorYaml.port
+      : 5555;
+
+  const rawWorktrees = servitorYaml.worktrees ?? yaml.worktreesDir;
   const worktreesDir =
-    typeof yaml.worktreesDir === 'string'
-      ? yaml.worktreesDir.replace(/^~/, homedir())
-      : join(homedir(), 'servitor-worktrees');
+    typeof rawWorktrees === 'string'
+      ? rawWorktrees.replace(/^~/, homedir())
+      : join(homedir(), '.servitor', 'worktrees');
 
   // Ensure .servitor/ directory exists with a .gitignore
   const servitorDir = join(repoPath, '.servitor');
@@ -67,6 +80,7 @@ function loadConfig(): ServitorConfig {
     repoPath,
     projectName,
     projectSlug: slugify(projectName),
+    port,
     worktreesDir
   };
 }

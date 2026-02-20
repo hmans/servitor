@@ -7,7 +7,8 @@ vi.mock('./config', () => ({
     repoPath: '/fake/repo',
     worktreesDir: '/fake/worktrees',
     projectSlug: 'test-project',
-    projectName: 'Test Project'
+    projectName: 'Test Project',
+    port: 5555
   }
 }));
 
