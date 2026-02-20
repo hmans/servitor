@@ -5,7 +5,7 @@ import { execSync } from 'child_process';
 vi.mock('./config', () => ({
   config: {
     repoPath: '/fake/repo',
-    worktreesDir: '/fake/worktrees',
+    worktreesDir: '/fake/worktrees/test-project',
     projectSlug: 'test-project',
     projectName: 'Test Project',
     port: 5555

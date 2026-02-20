@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from 'fs';
 vi.mock('./config', () => ({
   config: {
     repoPath: '/fake/repo',
-    worktreesDir: '/fake/worktrees',
+    worktreesDir: '/fake/worktrees/test-project',
     projectSlug: 'test-project',
     projectName: 'Test Project',
     port: 5555
@@ -158,7 +158,7 @@ describe('createWorktree', () => {
       branch: 'servitor/fix-bug',
       worktreePath: '/fake/worktrees/test-project/fix-bug'
     });
-    // Verify mkdirSync was called for parent directory
+    // Verify mkdirSync was called for worktrees directory
     expect(mockedMkdirSync).toHaveBeenCalledWith('/fake/worktrees/test-project', {
       recursive: true
     });
