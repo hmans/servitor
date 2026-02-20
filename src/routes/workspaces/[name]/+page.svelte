@@ -4,7 +4,6 @@
 	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
-	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 	import ServitorBit from '$lib/components/ServitorBit.svelte';
 	import StatusDot from '$lib/components/StatusDot.svelte';
 	import MetaPill from '$lib/components/MetaPill.svelte';
@@ -1233,19 +1232,23 @@
 											<Markdown content={textTypewriter.revealed} />
 										</div>
 									{/if}
-									{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
-										<div class="pl-3">
-											<BrailleSpinner />
-										</div>
-									{/if}
-								</div>
-							{:else if sending || activity.busy}
-								<div class="pl-3">
-									<BrailleSpinner />
 								</div>
 							{/if}
 						</div>
 					{/if}
+
+					<!-- Activity indicator -->
+					<div class="flex justify-center py-4">
+						<div class="h-10 w-10 overflow-visible">
+							<ServitorBit
+								pulse={activity.pulseCount}
+								busy={activity.busy}
+								toolEmojiId={activity.toolEmojiId}
+								toolEmoji={activity.toolEmoji}
+								onclick={() => composerEl?.focus()}
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -1289,7 +1292,7 @@
 			ondragleave={handleDragLeave}
 		>
 			{#if pendingAttachments.length > 0}
-				<div class="mb-2 flex gap-2 pl-16">
+				<div class="mb-2 flex gap-2">
 					{#each pendingAttachments as att, i}
 						<div class="group relative h-16 w-16 overflow-hidden rounded border border-zinc-700">
 							<img src={att.preview} alt={att.filename} class="h-full w-full object-cover" />
@@ -1311,15 +1314,6 @@
 				onchange={handleFileSelect}
 			/>
 			<div class="flex items-center gap-2">
-				<div class="h-14 w-14 shrink-0 overflow-visible">
-					<ServitorBit
-						pulse={activity.pulseCount}
-						busy={activity.busy}
-						toolEmojiId={activity.toolEmojiId}
-						toolEmoji={activity.toolEmoji}
-						onclick={() => composerEl?.focus()}
-					/>
-				</div>
 				<textarea
 					bind:this={composerEl}
 					bind:value={input}
@@ -1330,7 +1324,7 @@
 						el.style.height = 'auto';
 						el.style.height = Math.min(el.scrollHeight, 200) + 'px';
 					}}
-					placeholder=""
+					placeholder="Ask Servitor anything..."
 					rows="1"
 					class="flex-1 resize-none bg-transparent py-1.5 font-mono text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
