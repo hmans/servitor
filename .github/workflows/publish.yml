@@ -23,6 +23,8 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - run: npm install -g npm@latest
+
       - run: pnpm install --frozen-lockfile
 
       - name: Unit tests
@@ -32,9 +34,13 @@ jobs:
         run: pnpm build
 
       - name: Create release PR or publish
+        id: changesets
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset publish --access public
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: npm publish --access public --provenance
