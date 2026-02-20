@@ -2,8 +2,9 @@
 
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { homedir } from "node:os";
 import { Command } from "commander";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,53 @@ program
 		console.log(`  http://${opts.host}:${opts.port}\n`);
 
 		await import(buildEntry);
+	});
+
+program
+	.command("init")
+	.description("Initialize Servitor in the current git repository")
+	.action(() => {
+		let repoRoot;
+		try {
+			repoRoot = execSync("git rev-parse --show-toplevel", {
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			}).trim();
+		} catch {
+			console.error("Error: servitor init must be run from within a git repository.");
+			process.exit(1);
+		}
+
+		// Create .servitor/ directory
+		const servitorDir = join(repoRoot, ".servitor");
+		mkdirSync(servitorDir, { recursive: true });
+
+		// Create .servitor/.gitignore
+		const gitignorePath = join(servitorDir, ".gitignore");
+		if (!existsSync(gitignorePath)) {
+			writeFileSync(gitignorePath, "*\n");
+			console.log("  created .servitor/.gitignore");
+		} else {
+			console.log("  .servitor/.gitignore already exists, skipping");
+		}
+
+		// Create .servitor.yml
+		const configPath = join(repoRoot, ".servitor.yml");
+		if (!existsSync(configPath)) {
+			const defaultWorktrees = join(homedir(), ".servitor", "worktrees");
+			const yaml = [
+				"servitor:",
+				"  port: 5555",
+				`  worktrees: ${defaultWorktrees}`,
+				"",
+			].join("\n");
+			writeFileSync(configPath, yaml);
+			console.log("  created .servitor.yml");
+		} else {
+			console.log("  .servitor.yml already exists, skipping");
+		}
+
+		console.log("\n  Servitor initialized!\n");
 	});
 
 program.parse();
