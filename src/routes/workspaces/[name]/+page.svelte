@@ -7,11 +7,15 @@
 	import PaneResizer from '$lib/components/PaneResizer.svelte';
 	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 	import ServitorBit from '$lib/components/ServitorBit.svelte';
+	import StatusDot from '$lib/components/StatusDot.svelte';
+	import MetaPill from '$lib/components/MetaPill.svelte';
+	import OptionButton from '$lib/components/OptionButton.svelte';
 
 	import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
 	import type { Attachment } from '$lib/server/conversations';
 	import { activity } from '$lib/stores/activity.svelte';
 	import { linkifyUrls } from '$lib/linkify';
+	import { toolIcon, humanizeToolUse } from '$lib/utils/tool-display';
 
 	let { data } = $props();
 
@@ -50,46 +54,6 @@
 
 	function toggleMeta(key: string) {
 		expandedMeta[key] = !expandedMeta[key];
-	}
-
-	function toolIcon(tool: string): string {
-		switch (tool) {
-			case 'Read': return 'icon-[uil--eye]';
-			case 'Write': return 'icon-[uil--file-plus]';
-			case 'Edit': return 'icon-[uil--pen]';
-			case 'Bash': return 'icon-[uil--wrench]';
-			case 'Glob': return 'icon-[uil--search]';
-			case 'Grep': return 'icon-[uil--search-alt]';
-			case 'WebFetch':
-			case 'WebSearch': return 'icon-[uil--globe]';
-			case 'Task': return 'icon-[uil--wrench]';
-			case 'TodoWrite':
-			case 'TaskCreate': return 'icon-[uil--clipboard-notes]';
-			case 'TaskUpdate':
-			case 'TaskGet':
-			case 'TaskList': return 'icon-[uil--clipboard]';
-			default: return 'icon-[uil--wrench]';
-		}
-	}
-
-	function humanizeToolUse(tool: string, toolInput: string): string {
-		switch (tool) {
-			case 'Read': return toolInput ? `Reading ${toolInput}` : 'Reading a file';
-			case 'Write': return toolInput ? `Writing ${toolInput}` : 'Writing a file';
-			case 'Edit': return toolInput ? `Editing ${toolInput}` : 'Editing a file';
-			case 'Bash': return toolInput ? `Running \`${toolInput}\`` : 'Running a command';
-			case 'Glob': return toolInput ? `Finding files matching ${toolInput}` : 'Finding files';
-			case 'Grep': return toolInput ? `Searching for "${toolInput}"` : 'Searching code';
-			case 'WebFetch': return toolInput ? `Fetching ${toolInput}` : 'Fetching a URL';
-			case 'WebSearch': return toolInput ? `Searching the web for "${toolInput}"` : 'Searching the web';
-			case 'Task': return toolInput ? `Spawning task: ${toolInput}` : 'Spawning a sub-task';
-			case 'TodoWrite':
-			case 'TaskCreate': return toolInput ? `Added todo: ${toolInput}` : 'Added a todo';
-			case 'TaskUpdate': return toolInput ? `Updating task ${toolInput}` : 'Updating a task';
-			case 'TaskGet': return toolInput ? `Checking task ${toolInput}` : 'Checking a task';
-			case 'TaskList': return 'Listing tasks';
-			default: return toolInput ? `${tool} ${toolInput}` : tool;
-		}
 	}
 
 	// Typewriter: progressively reveal streamed text word by word
@@ -890,19 +854,13 @@
 		<div class="flex gap-4">
 			<div class="flex w-1/3 flex-col gap-1.5">
 				{#each q.options as option}
-					{@const selected = isOptionPending(toolUseId, q.question, option.label)}
-					<button
+					<OptionButton
+						label={option.label}
+						description={option.description}
+						selected={isOptionPending(toolUseId, q.question, option.label)}
 						onmouseenter={() => focusPreview(toolUseId, q.question, option.label)}
 						onclick={() => selectOption(toolUseId, q, option.label, allQuestions)}
-						class="rounded border px-3 py-1.5 text-left text-sm transition-colors {selected
-							? 'border-pink-500 bg-pink-500/20 text-pink-400'
-							: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
-					>
-						<div>{option.label}</div>
-						{#if option.description}
-							<div class="text-xs text-zinc-500">{option.description}</div>
-						{/if}
-					</button>
+					/>
 				{/each}
 			</div>
 			<div
@@ -919,16 +877,11 @@
 		<!-- Horizontal buttons (no markdown) -->
 		<div class="flex flex-wrap gap-2">
 			{#each q.options as option}
-				{@const selected = isOptionPending(toolUseId, q.question, option.label)}
-				<button
+				<OptionButton
+					label={option.label}
+					selected={isOptionPending(toolUseId, q.question, option.label)}
 					onclick={() => selectOption(toolUseId, q, option.label, allQuestions)}
-					class="rounded border px-3 py-1.5 text-sm transition-colors {selected
-						? 'border-pink-500 bg-pink-500/20 text-pink-400'
-						: 'border-zinc-600 text-zinc-300 hover:border-pink-500 hover:text-pink-400'}"
-					title={option.description}
-				>
-					{option.label}
-				</button>
+				/>
 			{/each}
 		</div>
 	{/if}
@@ -937,14 +890,11 @@
 {#snippet questionOptionsReadonly(q: AskUserQuestion, answers: Record<string, string>)}
 	<div class="flex flex-wrap gap-2">
 		{#each q.options as option}
-			{@const selected = wasOptionSelected(answers, q.question, option.label)}
-			<span
-				class="rounded border px-3 py-1.5 text-sm {selected
-					? 'border-pink-500 bg-pink-500/20 text-pink-400'
-					: 'border-zinc-800 text-zinc-700'}"
-			>
-				{option.label}
-			</span>
+			<OptionButton
+				label={option.label}
+				selected={wasOptionSelected(answers, q.question, option.label)}
+				disabled
+			/>
 		{/each}
 	</div>
 {/snippet}
@@ -952,7 +902,7 @@
 <div class="flex h-full">
 	<!-- Chat column -->
 	<div
-		class="flex min-w-0 flex-1 flex-col border-l-2 pl-3 pr-3 font-mono {executionMode === 'plan'
+		class="flex min-w-0 flex-1 flex-col border-l-2 px-4 {executionMode === 'plan'
 			? 'border-l-amber-500/50'
 			: 'border-l-transparent'}"
 	>
@@ -964,23 +914,19 @@
 		>
 			<div class="flex items-center gap-2 text-sm">
 				<span class="text-zinc-200">{data.workspace.name}</span>
-				{#if processAlive || sending}
-					<span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
-				{:else}
-					<span class="inline-block h-2 w-2 rounded-full bg-zinc-700"></span>
-				{/if}
+				<StatusDot active={processAlive || sending} size="md" />
 			</div>
 			<div class="flex items-center gap-3">
 				<!-- Execution mode selector -->
-				<div class="flex gap-1 text-xs">
+				<div class="flex gap-1">
 					{#each ['plan', 'build'] as mode}
 						<button
 							onclick={() => setMode(mode as ExecutionMode)}
-							class="rounded px-2 py-0.5 transition-colors {executionMode === mode
+							class="tab-btn {executionMode === mode
 								? mode === 'plan'
 									? 'bg-amber-500/20 text-amber-400'
 									: 'bg-green-500/20 text-green-400'
-								: 'text-zinc-600 hover:text-zinc-400'}"
+								: ''}"
 						>
 							{mode}
 						</button>
@@ -1000,7 +946,7 @@
 						onclick={(e: MouseEvent) => {
 							if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
 						}}
-						class="text-xs text-zinc-600 transition-colors hover:text-red-400"
+						class="bracket-btn hover:text-red-400"
 					>
 						[delete]
 					</button>
@@ -1010,11 +956,11 @@
 
 		<!-- Messages -->
 		<div class="relative flex-1">
-		<div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3">
+		<div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3 font-mono">
 			<div class="flex min-h-full flex-col justify-end">
 			{#if localMessages.length === 0 && !sending}
 				<div class="flex h-full items-center justify-center">
-					<p class="text-sm text-zinc-600">Type a message to begin.</p>
+					<p class="empty-state">Type a message to begin.</p>
 				</div>
 			{:else}
 				<div class="space-y-6 leading-[1.8]">
@@ -1022,10 +968,10 @@
 						<div class="group">
 							{#if msg.role === 'user' && msg.askUserAnswers}
 								<!-- Persisted answer with rich UI -->
-								<div class="rounded border border-zinc-700 p-4">
+								<div class="card p-4">
 									{#each msg.askUserAnswers.questions as q}
 										<div class="mb-4 last:mb-0">
-											<div class="mb-1 text-xs uppercase tracking-wide text-amber-600">
+											<div class="section-label">
 												{q.header}
 											</div>
 											<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
@@ -1065,34 +1011,29 @@
 								</div>
 							{:else}
 								{#if msg.thinking && verbose}
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div
-									class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
-									onclick={() => toggleMeta(`${i}-thinking`)}
+								<MetaPill
+									icon="icon-[uil--brain]"
+									label={expandedMeta[`${i}-thinking`] ? 'Thinking' : 'Thinking...'}
+									expanded={expandedMeta[`${i}-thinking`]}
+									ontoggle={() => toggleMeta(`${i}-thinking`)}
+									truncate={false}
 								>
-									{#if expandedMeta[`${i}-thinking`]}
-										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking
-										<Markdown content={msg.thinking} />
-									{:else}
-										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking...
-									{/if}
-								</div>
+									<Markdown content={msg.thinking} />
+								</MetaPill>
 							{/if}
 								{#if msg.toolInvocations?.length}
 								{#if verbose}
 									{#each msg.toolInvocations as tool, ti}
-										<!-- svelte-ignore a11y_click_events_have_key_events -->
-										<!-- svelte-ignore a11y_no_static_element_interactions -->
-										<div
-											class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
-											class:truncate={!expandedMeta[`${i}-tool-${ti}`]}
-											onclick={() => toggleMeta(`${i}-tool-${ti}`)}
-										><span class="{toolIcon(tool.tool)} mr-1 inline-block align-text-bottom"></span>{humanizeToolUse(tool.tool, tool.input)}</div>
+										<MetaPill
+											icon={toolIcon(tool.tool)}
+											label={humanizeToolUse(tool.tool, tool.input)}
+											expanded={expandedMeta[`${i}-tool-${ti}`]}
+											ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
+										/>
 									{/each}
 								{:else}
 									<div class="mb-1 text-xs text-zinc-600">
-										<span class="text-zinc-700">[tools]</span>
+										<span class="text-zinc-600">[tools]</span>
 										{Object.entries(msg.toolInvocations.reduce((acc: Record<string, number>, t) => { acc[t.tool] = (acc[t.tool] || 0) + 1; return acc; }, {})).map(([tool, n]) => n > 1 ? tool + ' x' + n : tool).join(', ')}
 									</div>
 								{/if}
@@ -1108,32 +1049,27 @@
 					{#if streamingParts.length > 0}
 						<div class="space-y-3">
 							{#if thinkingTypewriter.revealed && verbose}
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div
-									class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
-									onclick={() => toggleMeta('streaming-thinking')}
+								<MetaPill
+									icon="icon-[uil--brain]"
+									label={expandedMeta['streaming-thinking'] ? 'Thinking' : 'Thinking...'}
+									expanded={expandedMeta['streaming-thinking']}
+									ontoggle={() => toggleMeta('streaming-thinking')}
+									truncate={false}
 								>
-									{#if expandedMeta['streaming-thinking']}
-										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking
-										<Markdown content={thinkingTypewriter.revealed} />
-									{:else}
-										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking...
-									{/if}
-								</div>
+									<Markdown content={thinkingTypewriter.revealed} />
+								</MetaPill>
 							{/if}
 							{#each streamingParts as part, i (i)}
 								{#if part.type === 'tool_use' && verbose}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
-									<div
-										class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
-										class:truncate={!expandedMeta[`streaming-tool-${i}`]}
-										onclick={() => toggleMeta(`streaming-tool-${i}`)}
-									><span class="{toolIcon(part.tool)} mr-1 inline-block align-text-bottom"></span>{humanizeToolUse(part.tool, part.input)}</div>
+									<MetaPill
+										icon={toolIcon(part.tool)}
+										label={humanizeToolUse(part.tool, part.input)}
+										expanded={expandedMeta[`streaming-tool-${i}`]}
+										ontoggle={() => toggleMeta(`streaming-tool-${i}`)}
+									/>
 								{:else if part.type === 'enter_plan'}
-									<div class="my-3 rounded border border-amber-700/50 bg-amber-500/5 p-4">
-										<div class="mb-2 text-xs uppercase tracking-wide text-amber-600">
+									<div class="my-3 card border-amber-700/50 bg-amber-500/5 p-4">
+										<div class="section-label text-amber-600">
 											Enter Plan Mode
 										</div>
 										<div class="mb-3 text-sm text-zinc-300">
@@ -1157,10 +1093,10 @@
 										{/if}
 									</div>
 								{:else if part.type === 'ask_user'}
-									<div class="my-3 rounded border border-zinc-700 p-4">
+									<div class="my-3 card p-4">
 										{#each part.questions as q}
 											<div class="mb-4 last:mb-0">
-												<div class="mb-1 text-xs uppercase tracking-wide text-amber-600">
+												<div class="section-label">
 													{q.header}
 												</div>
 												<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
@@ -1211,7 +1147,7 @@
 												<button
 													onclick={() => submitCustomAnswer(part.toolUseId)}
 													disabled={!customAnswer[part.toolUseId]?.trim()}
-													class="pb-0.5 text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
+													class="bracket-btn pb-0.5"
 												>
 													[reply]
 												</button>
@@ -1219,8 +1155,8 @@
 										{/if}
 									</div>
 								{:else if part.type === 'exit_plan'}
-									<div class="my-3 rounded border border-zinc-700 p-4">
-										<div class="mb-2 flex items-center gap-3 text-xs uppercase tracking-wide text-amber-600">
+									<div class="my-3 card p-4">
+										<div class="section-label text-amber-600 flex items-center gap-3">
 											<span>Plan Approval</span>
 											{#if part.planFilePath}
 												<span class="normal-case tracking-normal text-zinc-600">{part.planFilePath}</span>
@@ -1359,7 +1295,7 @@
 				></textarea>
 				<button
 					onclick={() => fileInputEl?.click()}
-					class="text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+					class="bracket-btn"
 					title="Attach image"
 				>
 					[img]
@@ -1367,7 +1303,7 @@
 				{#if processAlive}
 					<button
 						onclick={stopProcess}
-						class="text-xs text-red-600 transition-colors hover:text-red-400"
+						class="bracket-btn text-red-600 hover:text-red-400"
 					>
 						[stop]
 					</button>
@@ -1375,7 +1311,7 @@
 					<button
 						onclick={sendMessage}
 						disabled={!input.trim() && pendingAttachments.length === 0}
-						class="text-xs text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20"
+						class="bracket-btn"
 					>
 						[send]
 					</button>
@@ -1386,7 +1322,7 @@
 
 	<!-- Resizer + Info pane -->
 	<PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" storageKey="pane:info" />
-	<div class="hidden shrink-0 overflow-auto pl-3 lg:block" style:width="{infoPaneWidth}px">
+	<div class="hidden shrink-0 overflow-auto bg-zinc-900 px-4 lg:block" style:width="{infoPaneWidth}px">
 		<InfoPane
 			commits={data.commits}
 			committedDiff={data.committedDiff}

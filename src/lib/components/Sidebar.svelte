@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { workspaceStatus } from '$lib/stores/workspaceStatus.svelte';
+	import StatusDot from '$lib/components/StatusDot.svelte';
 
 	type Workspace = {
 		name: string;
@@ -23,20 +24,16 @@
 		{#each workspaces as ws}
 			<a
 				href="/workspaces/{ws.name}"
-				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors {isActiveWorkspace(ws.name)
+				class="list-item text-sm font-medium {isActiveWorkspace(ws.name)
 					? 'text-zinc-100'
 					: 'text-zinc-400 hover:text-zinc-200'}"
 			>
-					<span
-					class="inline-block h-1.5 w-1.5 shrink-0 rounded-full {workspaceStatus.isBusy(ws.name)
-						? 'bg-pink-500 animate-pulse'
-						: 'bg-zinc-700'}"
-				></span>
+				<StatusDot active={workspaceStatus.isBusy(ws.name)} pulse />
 				<span class="truncate">{ws.name}</span>
 				<span class="shrink-0 font-mono text-xs text-zinc-600">{ws.branch}</span>
 			</a>
 		{:else}
-			<p class="px-3 py-2 text-sm text-zinc-600">No workspaces yet.</p>
+			<p class="empty-state px-2">No workspaces yet.</p>
 		{/each}
 	</nav>
 

@@ -9,6 +9,69 @@
 	--font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
 }
 
+@utility bracket-btn {
+	font-size: theme(fontSize.xs);
+	color: theme(colors.zinc.600);
+	transition-property: color;
+	transition-timing-function: theme(transitionTimingFunction.in-out);
+	transition-duration: theme(transitionDuration.150);
+	&:hover {
+		color: theme(colors.zinc.300);
+	}
+	&:disabled {
+		opacity: 0.2;
+	}
+}
+
+@utility section-label {
+	margin-bottom: theme(spacing.2);
+	font-size: theme(fontSize.xs);
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: theme(letterSpacing.wider);
+	color: theme(colors.zinc.500);
+}
+
+@utility card {
+	border-radius: theme(borderRadius.lg);
+	border-width: 1px;
+	border-color: theme(colors.zinc.800);
+}
+
+@utility tab-btn {
+	border-radius: theme(borderRadius.DEFAULT);
+	padding: theme(spacing[1.5]) theme(spacing.3);
+	font-size: theme(fontSize.xs);
+	font-weight: 500;
+	transition-property: color, background-color;
+	transition-timing-function: theme(transitionTimingFunction.in-out);
+	transition-duration: theme(transitionDuration.150);
+	color: theme(colors.zinc.500);
+	&:hover {
+		color: theme(colors.zinc.200);
+	}
+}
+
+@utility list-item {
+	display: flex;
+	align-items: center;
+	gap: theme(spacing.2);
+	border-radius: theme(borderRadius.md);
+	padding: theme(spacing.1) theme(spacing.2);
+	transition-property: background-color;
+	transition-timing-function: theme(transitionTimingFunction.in-out);
+	transition-duration: theme(transitionDuration.150);
+	&:hover {
+		background-color: rgb(39 39 42 / 0.5);
+	}
+}
+
+@utility empty-state {
+	padding: theme(spacing.4) 0;
+	font-size: theme(fontSize.sm);
+	color: theme(colors.zinc.600);
+}
+
 /* Markdown rendering in chat messages */
 .markdown h1,
 .markdown h2,

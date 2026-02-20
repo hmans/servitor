@@ -13,7 +13,7 @@
 
 <div class="space-y-2">
 	{#each files as file, i (i)}
-		<div class="overflow-hidden rounded-lg border border-zinc-800">
+		<div class="card overflow-hidden">
 			<!-- File header -->
 			<button
 				onclick={() => toggle(i)}

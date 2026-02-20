@@ -6,7 +6,7 @@
 
 <svelte:head><title>New Workspace - Servitor</title></svelte:head>
 
-<div class="mx-auto max-w-lg">
+<div class="mx-auto max-w-lg bg-zinc-900 p-6">
 	<h2 class="mb-6 text-2xl font-bold">New Workspace</h2>
 
 	<form method="POST" use:enhance class="space-y-4">
