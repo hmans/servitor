@@ -1,5 +1,21 @@
 # @hmans/servitor
 
+## 0.3.0
+
+### Minor Changes
+
+- 306b8bb: Add `servitor init` command that scaffolds `.servitor/` directory and `.servitor.yml` config
+- dd6f0ff: Add permanent main branch workspace for running tasks directly on the main branch
+
+### Patch Changes
+
+- 79039e6: Use port from `.servitor.yml` for the Vite dev server
+- 14c2b42: Fix message rendering to preserve interleaved ordering of text and tool invocations
+
+  Text and tool invocations within an assistant turn are now stored as ordered `parts` and rendered in their original sequence, both during streaming and after persistence. Previously all tool invocations were grouped together before the text content.
+
+- adf6e06: Fix publish workflow to create GitHub Releases via changesets action
+
 ## 0.2.0
 
 ### Minor Changes
