@@ -1002,17 +1002,19 @@
       </button>
 
       <!-- Delete workspace -->
-      <form method="POST" action="?/delete" use:enhance>
-        <button
-          type="submit"
-          onclick={(e: MouseEvent) => {
-            if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
-          }}
-          class="tab-btn hover:text-red-400"
-        >
-          delete
-        </button>
-      </form>
+      {#if !data.workspace.isMainWorkspace}
+        <form method="POST" action="?/delete" use:enhance>
+          <button
+            type="submit"
+            onclick={(e: MouseEvent) => {
+              if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
+            }}
+            class="tab-btn hover:text-red-400"
+          >
+            delete
+          </button>
+        </form>
+      {/if}
     </div>
   </div>
 

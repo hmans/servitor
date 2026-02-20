@@ -16,6 +16,8 @@ export interface ServitorConfig {
   port: number;
   /** Base directory for all worktrees. Default: $HOME/.servitor/worktrees */
   worktreesDir: string;
+  /** Whether Servitor was launched from the main working tree (not a linked worktree) */
+  isMainWorktree: boolean;
 }
 
 function slugify(name: string): string {
@@ -69,6 +71,24 @@ function loadConfig(): ServitorConfig {
       ? rawWorktrees.replace(/^~/, homedir())
       : join(homedir(), '.servitor', 'worktrees', projectSlug);
 
+  // Detect whether we're in the main working tree or a linked worktree.
+  // In a linked worktree, --git-dir points to .git/worktrees/<name> while
+  // --git-common-dir points to the main .git directory.
+  let isMainWorktree = true;
+  try {
+    const gitDir = execSync('git rev-parse --path-format=absolute --git-dir', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+    const commonDir = execSync('git rev-parse --path-format=absolute --git-common-dir', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+    isMainWorktree = gitDir === commonDir;
+  } catch {
+    // If detection fails, assume main worktree
+  }
+
   // Ensure .servitor/ directory exists with a .gitignore
   const servitorDir = join(repoPath, '.servitor');
   mkdirSync(servitorDir, { recursive: true });
@@ -83,7 +103,8 @@ function loadConfig(): ServitorConfig {
     projectName,
     projectSlug,
     port,
-    worktreesDir
+    worktreesDir,
+    isMainWorktree
   };
 }
 

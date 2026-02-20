@@ -1,6 +1,10 @@
 import { execSync } from 'child_process';
 import { config } from './config';
-import { createWorktree as gitCreateWorktree, removeWorktree as gitRemoveWorktree } from './git';
+import {
+  createWorktree as gitCreateWorktree,
+  removeWorktree as gitRemoveWorktree,
+  getDefaultBranch
+} from './git';
 
 export interface Workspace {
   /** Workspace name, e.g. "fix-bug" (derived from branch "servitor/fix-bug") */
@@ -9,9 +13,22 @@ export interface Workspace {
   branch: string;
   /** Absolute path to the git worktree */
   worktreePath: string;
+  /** Whether this is the permanent main branch workspace */
+  isMainWorkspace: boolean;
 }
 
+export const MAIN_WORKSPACE_NAME = 'main-workspace';
+
 const BRANCH_PREFIX = 'servitor/';
+
+function getMainWorkspace(): Workspace {
+  return {
+    name: MAIN_WORKSPACE_NAME,
+    branch: getDefaultBranch(),
+    worktreePath: config.repoPath,
+    isMainWorkspace: true
+  };
+}
 
 /**
  * Parse `git worktree list --porcelain` output into Workspace objects.
@@ -25,10 +42,10 @@ export function listWorkspaces(): Workspace[] {
       encoding: 'utf-8'
     }).trim();
   } catch {
-    return [];
+    return config.isMainWorktree ? [getMainWorkspace()] : [];
   }
 
-  if (!output) return [];
+  if (!output) return config.isMainWorktree ? [getMainWorkspace()] : [];
 
   const workspaces: Workspace[] = [];
 
@@ -51,24 +68,35 @@ export function listWorkspaces(): Workspace[] {
       workspaces.push({
         name: branch.slice(BRANCH_PREFIX.length),
         branch,
-        worktreePath
+        worktreePath,
+        isMainWorkspace: false
       });
     }
   }
 
-  return workspaces.sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = workspaces.sort((a, b) => a.name.localeCompare(b.name));
+  return config.isMainWorktree ? [getMainWorkspace(), ...sorted] : sorted;
 }
 
 export function getWorkspace(name: string): Workspace | undefined {
+  if (name === MAIN_WORKSPACE_NAME) {
+    return config.isMainWorktree ? getMainWorkspace() : undefined;
+  }
   return listWorkspaces().find((ws) => ws.name === name);
 }
 
 export function createWorkspace(name: string): Workspace {
+  if (name === MAIN_WORKSPACE_NAME) {
+    throw new Error(`"${MAIN_WORKSPACE_NAME}" is a reserved name`);
+  }
   const { branch, worktreePath } = gitCreateWorktree(name);
-  return { name, branch, worktreePath };
+  return { name, branch, worktreePath, isMainWorkspace: false };
 }
 
 export function deleteWorkspace(name: string): void {
+  if (name === MAIN_WORKSPACE_NAME) {
+    throw new Error('Cannot delete the main workspace');
+  }
   const ws = getWorkspace(name);
   if (!ws) return;
   gitRemoveWorktree(ws.worktreePath, ws.branch);

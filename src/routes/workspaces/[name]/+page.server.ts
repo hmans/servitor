@@ -19,6 +19,7 @@ export const actions = {
   delete: async ({ params }) => {
     const ws = getWorkspace(params.name);
     if (!ws) error(404, 'Workspace not found');
+    if (ws.isMainWorkspace) error(403, 'Cannot delete the main workspace');
 
     deleteWorkspace(params.name);
     redirect(303, '/');

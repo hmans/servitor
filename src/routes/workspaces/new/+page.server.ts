@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { createWorkspace } from '$lib/server/workspaces';
+import { createWorkspace, MAIN_WORKSPACE_NAME } from '$lib/server/workspaces';
 
 export const actions = {
   default: async ({ request }) => {
@@ -13,6 +13,10 @@ export const actions = {
         error: 'Name must be lowercase alphanumeric with hyphens (e.g. "fix-login-bug").',
         name
       });
+    }
+
+    if (name === MAIN_WORKSPACE_NAME) {
+      return fail(400, { error: `"${MAIN_WORKSPACE_NAME}" is a reserved name.`, name });
     }
 
     try {

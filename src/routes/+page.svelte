@@ -18,9 +18,10 @@
     </a>
   </div>
 
-  {#if data.workspaces.length === 0}
+  {#if data.workspaces.length <= 1}
     <p class="empty-state">No workspaces yet. Create one to get started.</p>
-  {:else}
+  {/if}
+  {#if data.workspaces.length > 0}
     <div class="space-y-2">
       {#each data.workspaces as ws}
         <a

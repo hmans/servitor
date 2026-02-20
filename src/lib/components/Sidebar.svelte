@@ -4,6 +4,7 @@
   type Workspace = {
     name: string;
     branch: string;
+    isMainWorkspace?: boolean;
   };
 
   let { workspaces, projectName }: { workspaces: Workspace[]; projectName: string } = $props();
