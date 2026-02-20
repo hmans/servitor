@@ -27,6 +27,7 @@
 	let pendingAttachments: Array<{ file: File; preview: string; filename: string; mediaType: string }> = $state([]);
 	let fileInputEl: HTMLInputElement | undefined = $state();
 	let dragOver = $state(false);
+	let verbose = $state(typeof localStorage !== 'undefined' && localStorage.getItem('verbose') === 'true');
 
 	// Sync execution mode from server data
 	$effect(() => {
@@ -44,9 +45,52 @@
 		messagesEl.scrollTop = messagesEl.scrollHeight;
 		requestAnimationFrame(() => { isProgrammaticScroll = false; });
 	}
-	let expandedThinking: Set<number> = $state(new Set());
-	let streamingThinkingExpanded = $state(false);
 	let eventSource: EventSource | null = null;
+	let expandedMeta: Record<string, boolean> = $state({});
+
+	function toggleMeta(key: string) {
+		expandedMeta[key] = !expandedMeta[key];
+	}
+
+	function toolIcon(tool: string): string {
+		switch (tool) {
+			case 'Read': return 'icon-[uil--eye]';
+			case 'Write': return 'icon-[uil--file-plus]';
+			case 'Edit': return 'icon-[uil--pen]';
+			case 'Bash': return 'icon-[uil--wrench]';
+			case 'Glob': return 'icon-[uil--search]';
+			case 'Grep': return 'icon-[uil--search-alt]';
+			case 'WebFetch':
+			case 'WebSearch': return 'icon-[uil--globe]';
+			case 'Task': return 'icon-[uil--wrench]';
+			case 'TodoWrite':
+			case 'TaskCreate': return 'icon-[uil--clipboard-notes]';
+			case 'TaskUpdate':
+			case 'TaskGet':
+			case 'TaskList': return 'icon-[uil--clipboard]';
+			default: return 'icon-[uil--wrench]';
+		}
+	}
+
+	function humanizeToolUse(tool: string, toolInput: string): string {
+		switch (tool) {
+			case 'Read': return toolInput ? `Reading ${toolInput}` : 'Reading a file';
+			case 'Write': return toolInput ? `Writing ${toolInput}` : 'Writing a file';
+			case 'Edit': return toolInput ? `Editing ${toolInput}` : 'Editing a file';
+			case 'Bash': return toolInput ? `Running \`${toolInput}\`` : 'Running a command';
+			case 'Glob': return toolInput ? `Finding files matching ${toolInput}` : 'Finding files';
+			case 'Grep': return toolInput ? `Searching for "${toolInput}"` : 'Searching code';
+			case 'WebFetch': return toolInput ? `Fetching ${toolInput}` : 'Fetching a URL';
+			case 'WebSearch': return toolInput ? `Searching the web for "${toolInput}"` : 'Searching the web';
+			case 'Task': return toolInput ? `Spawning task: ${toolInput}` : 'Spawning a sub-task';
+			case 'TodoWrite':
+			case 'TaskCreate': return toolInput ? `Added todo: ${toolInput}` : 'Added a todo';
+			case 'TaskUpdate': return toolInput ? `Updating task ${toolInput}` : 'Updating a task';
+			case 'TaskGet': return toolInput ? `Checking task ${toolInput}` : 'Checking a task';
+			case 'TaskList': return 'Listing tasks';
+			default: return toolInput ? `${tool} ${toolInput}` : tool;
+		}
+	}
 
 	// Typewriter: progressively reveal streamed text word by word
 	function createTypewriter(pulseBit = true) {
@@ -942,6 +986,14 @@
 						</button>
 					{/each}
 				</div>
+				<button
+					onclick={() => { verbose = !verbose; localStorage.setItem('verbose', String(verbose)); }}
+					class="text-xs transition-colors {verbose
+						? 'text-zinc-300'
+						: 'text-zinc-600 hover:text-zinc-400'}"
+				>
+					[verbose]
+				</button>
 				<form method="POST" action="?/delete" use:enhance>
 					<button
 						type="submit"
@@ -1012,28 +1064,38 @@
 									{/if}
 								</div>
 							{:else}
-								{#if msg.thinking}
+								{#if msg.thinking && verbose}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="mb-2 cursor-pointer" onclick={() => { if (expandedThinking.has(i)) expandedThinking.delete(i); else expandedThinking.add(i); expandedThinking = expandedThinking; }}>
-									{#if expandedThinking.has(i)}
-										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
-											<div class="text-sm text-zinc-500">
-												<Markdown content={msg.thinking} />
-											</div>
-										</div>
+								<div
+									class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
+									onclick={() => toggleMeta(`${i}-thinking`)}
+								>
+									{#if expandedMeta[`${i}-thinking`]}
+										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking
+										<Markdown content={msg.thinking} />
 									{:else}
-										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-3 py-2 text-center">
-											<span class="text-xs text-zinc-600">thinking..</span>
-										</div>
+										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking...
 									{/if}
 								</div>
 							{/if}
 								{#if msg.toolInvocations?.length}
+								{#if verbose}
+									{#each msg.toolInvocations as tool, ti}
+										<!-- svelte-ignore a11y_click_events_have_key_events -->
+										<!-- svelte-ignore a11y_no_static_element_interactions -->
+										<div
+											class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
+											class:truncate={!expandedMeta[`${i}-tool-${ti}`]}
+											onclick={() => toggleMeta(`${i}-tool-${ti}`)}
+										><span class="{toolIcon(tool.tool)} mr-1 inline-block align-text-bottom"></span>{humanizeToolUse(tool.tool, tool.input)}</div>
+									{/each}
+								{:else}
 									<div class="mb-1 text-xs text-zinc-600">
 										<span class="text-zinc-700">[tools]</span>
-										{Object.entries(msg.toolInvocations.reduce((acc, t) => { acc[t.tool] = (acc[t.tool] || 0) + 1; return acc; }, {} as Record<string, number>)).map(([tool, n]) => n > 1 ? tool + ' x' + n : tool).join(', ')}
+										{Object.entries(msg.toolInvocations.reduce((acc: Record<string, number>, t) => { acc[t.tool] = (acc[t.tool] || 0) + 1; return acc; }, {})).map(([tool, n]) => n > 1 ? tool + ' x' + n : tool).join(', ')}
 									</div>
+								{/if}
 								{/if}
 								<div class="text-sm text-zinc-300">
 									<Markdown content={msg.content} />
@@ -1045,25 +1107,31 @@
 					<!-- Streaming content -->
 					{#if streamingParts.length > 0}
 						<div class="space-y-3">
-							{#if thinkingTypewriter.revealed}
+							{#if thinkingTypewriter.revealed && verbose}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="cursor-pointer" onclick={() => streamingThinkingExpanded = !streamingThinkingExpanded}>
-									{#if streamingThinkingExpanded}
-										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-4 py-3">
-											<div class="text-sm text-zinc-500">
-												<Markdown content={thinkingTypewriter.revealed} />
-											</div>
-										</div>
+								<div
+									class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
+									onclick={() => toggleMeta('streaming-thinking')}
+								>
+									{#if expandedMeta['streaming-thinking']}
+										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking
+										<Markdown content={thinkingTypewriter.revealed} />
 									{:else}
-										<div class="rounded-xl border border-zinc-700/30 bg-zinc-800/40 px-3 py-2 text-center">
-											<span class="text-xs text-zinc-600">thinking..</span>
-										</div>
+										<span class="icon-[uil--brain] mr-1 inline-block align-text-bottom"></span>Thinking...
 									{/if}
 								</div>
 							{/if}
 							{#each streamingParts as part, i (i)}
-								{#if part.type === 'enter_plan'}
+								{#if part.type === 'tool_use' && verbose}
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<div
+										class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
+										class:truncate={!expandedMeta[`streaming-tool-${i}`]}
+										onclick={() => toggleMeta(`streaming-tool-${i}`)}
+									><span class="{toolIcon(part.tool)} mr-1 inline-block align-text-bottom"></span>{humanizeToolUse(part.tool, part.input)}</div>
+								{:else if part.type === 'enter_plan'}
 									<div class="my-3 rounded border border-amber-700/50 bg-amber-500/5 p-4">
 										<div class="mb-2 text-xs uppercase tracking-wide text-amber-600">
 											Enter Plan Mode
