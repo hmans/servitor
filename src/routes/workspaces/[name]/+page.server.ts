@@ -3,24 +3,24 @@ import { getWorkspace, deleteWorkspace } from '$lib/server/workspaces';
 import { ensureConversation, loadMessages } from '$lib/server/conversations';
 
 export async function load({ parent }) {
-	const { workspace } = await parent();
+  const { workspace } = await parent();
 
-	const meta = ensureConversation(workspace.worktreePath);
-	const messages = loadMessages(workspace.worktreePath);
+  const meta = ensureConversation(workspace.worktreePath);
+  const messages = loadMessages(workspace.worktreePath);
 
-	return {
-		messages,
-		executionMode: meta.executionMode ?? 'build',
-		pendingInteraction: meta.pendingInteraction ?? null
-	};
+  return {
+    messages,
+    executionMode: meta.executionMode ?? 'build',
+    pendingInteraction: meta.pendingInteraction ?? null
+  };
 }
 
 export const actions = {
-	delete: async ({ params }) => {
-		const ws = getWorkspace(params.name);
-		if (!ws) error(404, 'Workspace not found');
+  delete: async ({ params }) => {
+    const ws = getWorkspace(params.name);
+    if (!ws) error(404, 'Workspace not found');
 
-		deleteWorkspace(params.name);
-		redirect(303, '/');
-	}
+    deleteWorkspace(params.name);
+    redirect(303, '/');
+  }
 };

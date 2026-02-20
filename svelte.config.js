@@ -2,12 +2,12 @@ import adapter from '@sveltejs/adapter-node';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	kit: {
-		adapter: adapter({ precompress: false }),
-		csrf: {
-			trustedOrigins: ['*']
-		}
-	}
+  kit: {
+    adapter: adapter({ precompress: false }),
+    csrf: {
+      trustedOrigins: ['*']
+    }
+  }
 };
 
 export default config;

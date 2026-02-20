@@ -2,11 +2,11 @@ import { subscribeGlobalStatus, getAllStatuses } from '$lib/server/agents/manage
 import { createSSEResponse } from '$lib/server/sse';
 
 export function GET({ request }) {
-	return createSSEResponse(request, (send) => {
-		send('connected', { statuses: getAllStatuses() });
+  return createSSEResponse(request, (send) => {
+    send('connected', { statuses: getAllStatuses() });
 
-		return subscribeGlobalStatus((status) => {
-			send('status', status);
-		});
-	});
+    return subscribeGlobalStatus((status) => {
+      send('status', status);
+    });
+  });
 }
