@@ -61,11 +61,13 @@ function loadConfig(): ServitorConfig {
       ? servitorYaml.port
       : 5555;
 
+  const projectSlug = slugify(projectName);
+
   const rawWorktrees = servitorYaml.worktrees ?? yaml.worktreesDir;
   const worktreesDir =
     typeof rawWorktrees === 'string'
       ? rawWorktrees.replace(/^~/, homedir())
-      : join(homedir(), '.servitor', 'worktrees');
+      : join(homedir(), '.servitor', 'worktrees', projectSlug);
 
   // Ensure .servitor/ directory exists with a .gitignore
   const servitorDir = join(repoPath, '.servitor');
@@ -79,7 +81,7 @@ function loadConfig(): ServitorConfig {
   return {
     repoPath,
     projectName,
-    projectSlug: slugify(projectName),
+    projectSlug,
     port,
     worktreesDir
   };

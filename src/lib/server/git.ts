@@ -9,14 +9,14 @@ function run(cmd: string, cwd: string): string {
 
 export function createWorktree(name: string): { branch: string; worktreePath: string } {
   const branch = `servitor/${name}`;
-  const worktreePath = join(config.worktreesDir, config.projectSlug, name);
+  const worktreePath = join(config.worktreesDir, name);
 
   if (existsSync(worktreePath)) {
     throw new Error(`Worktree path already exists: ${worktreePath}`);
   }
 
   // Ensure parent directory exists
-  mkdirSync(join(config.worktreesDir, config.projectSlug), { recursive: true });
+  mkdirSync(config.worktreesDir, { recursive: true });
 
   // Create branch from the default branch (main/master) and set up worktree
   const baseBranch = getDefaultBranch();

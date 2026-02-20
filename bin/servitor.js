@@ -92,7 +92,9 @@ program
 		// Create .servitor.yml
 		const configPath = join(repoRoot, ".servitor.yml");
 		if (!existsSync(configPath)) {
-			const defaultWorktrees = join(homedir(), ".servitor", "worktrees");
+			const projectName = repoRoot.split("/").pop() || "project";
+			const projectSlug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+			const defaultWorktrees = join(homedir(), ".servitor", "worktrees", projectSlug);
 			const yaml = [
 				"servitor:",
 				"  port: 5555",
