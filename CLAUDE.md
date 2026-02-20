@@ -15,8 +15,9 @@
 - **Styling:** Tailwind CSS v4, monospace TUI-inspired aesthetic (Spline Sans Mono font)
 - **Storage:** No database — workspaces derived from git worktrees, conversations stored as JSONL files
 - **Markdown:** `marked` library with custom renderer (links open in new tabs)
-- **Package manager:** pnpm
+- **Package manager:** pnpm (always use `pnpm`, never `npm` or `npx`)
 - **Testing:** Vitest (unit), Playwright (E2E); run `mise test` or `pnpm vitest run --project server`
+- **Changesets:** Use `pnpm changeset` to create changesets when committing changes. Always include a changeset with your commits.
 
 ## Configuration
 
