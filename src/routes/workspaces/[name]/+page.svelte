@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
@@ -33,9 +34,7 @@
 	}> = $state([]);
 	let fileInputEl: HTMLInputElement | undefined = $state();
 	let dragOver = $state(false);
-	let verbose = $state(
-		typeof localStorage !== 'undefined' && localStorage.getItem('verbose') === 'true'
-	);
+	let verbose = $state(browser && localStorage.getItem('verbose') === 'true');
 
 	// Sync execution mode from server data
 	$effect(() => {
