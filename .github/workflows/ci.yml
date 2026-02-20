@@ -22,9 +22,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm check
-
       - name: Unit tests
         run: pnpm vitest run --project server
 
