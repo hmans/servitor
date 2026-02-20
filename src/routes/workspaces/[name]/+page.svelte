@@ -969,7 +969,7 @@
     <!-- Title and Status -->
     <div class="flex items-center gap-2 text-sm">
       <StatusDot active={processAlive || sending} size="md" />
-      <span class="text-zinc-200">{data.workspace.name}</span>
+      <span class="text-zinc-200">{data.workspace.label}</span>
     </div>
 
     <!-- Buttons -->

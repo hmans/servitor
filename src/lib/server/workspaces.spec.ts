@@ -48,6 +48,7 @@ describe('listWorkspaces', () => {
     expect(workspaces).toHaveLength(1);
     expect(workspaces[0]).toEqual({
       name: MAIN_WORKSPACE_NAME,
+      label: 'Main Workspace',
       branch: 'main',
       worktreePath: '/fake/repo',
       isMainWorkspace: true
@@ -86,6 +87,7 @@ describe('listWorkspaces', () => {
     expect(workspaces).toHaveLength(3);
     expect(workspaces[0]).toEqual({
       name: MAIN_WORKSPACE_NAME,
+      label: 'Main Workspace',
       branch: 'main',
       worktreePath: '/fake/repo',
       isMainWorkspace: true
@@ -93,12 +95,14 @@ describe('listWorkspaces', () => {
     // Sorted alphabetically after main
     expect(workspaces[1]).toEqual({
       name: 'add-feature',
+      label: 'add-feature',
       branch: 'servitor/add-feature',
       worktreePath: '/fake/worktrees/test-project/add-feature',
       isMainWorkspace: false
     });
     expect(workspaces[2]).toEqual({
       name: 'fix-bug',
+      label: 'fix-bug',
       branch: 'servitor/fix-bug',
       worktreePath: '/fake/worktrees/test-project/fix-bug',
       isMainWorkspace: false
@@ -147,6 +151,7 @@ describe('getWorkspace', () => {
     const ws = getWorkspace(MAIN_WORKSPACE_NAME);
     expect(ws).toEqual({
       name: MAIN_WORKSPACE_NAME,
+      label: 'Main Workspace',
       branch: 'main',
       worktreePath: '/fake/repo',
       isMainWorkspace: true
@@ -167,6 +172,7 @@ describe('getWorkspace', () => {
     const ws = getWorkspace('target');
     expect(ws).toEqual({
       name: 'target',
+      label: 'target',
       branch: 'servitor/target',
       worktreePath: '/fake/worktrees/test-project/target',
       isMainWorkspace: false

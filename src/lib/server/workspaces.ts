@@ -9,6 +9,8 @@ import {
 export interface Workspace {
   /** Workspace name, e.g. "fix-bug" (derived from branch "servitor/fix-bug") */
   name: string;
+  /** Human-readable label for display */
+  label: string;
   /** Full branch name, e.g. "servitor/fix-bug" */
   branch: string;
   /** Absolute path to the git worktree */
@@ -24,6 +26,7 @@ const BRANCH_PREFIX = 'servitor/';
 function getMainWorkspace(): Workspace {
   return {
     name: MAIN_WORKSPACE_NAME,
+    label: 'Main Workspace',
     branch: getDefaultBranch(),
     worktreePath: config.repoPath,
     isMainWorkspace: true
@@ -65,8 +68,10 @@ export function listWorkspaces(): Workspace[] {
     }
 
     if (branch.startsWith(BRANCH_PREFIX) && worktreePath) {
+      const name = branch.slice(BRANCH_PREFIX.length);
       workspaces.push({
-        name: branch.slice(BRANCH_PREFIX.length),
+        name,
+        label: name,
         branch,
         worktreePath,
         isMainWorkspace: false
@@ -90,7 +95,7 @@ export function createWorkspace(name: string): Workspace {
     throw new Error(`"${MAIN_WORKSPACE_NAME}" is a reserved name`);
   }
   const { branch, worktreePath } = gitCreateWorktree(name);
-  return { name, branch, worktreePath, isMainWorkspace: false };
+  return { name, label: name, branch, worktreePath, isMainWorkspace: false };
 }
 
 export function deleteWorkspace(name: string): void {

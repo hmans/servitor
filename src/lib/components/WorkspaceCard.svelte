@@ -3,7 +3,7 @@
   import { workspaceStatus } from '$lib/stores/workspaceStatus.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
 
-  let { name }: { name: string } = $props();
+  let { name, label }: { name: string; label: string } = $props();
 
   let active = $derived(page.url.pathname.startsWith(`/workspaces/${name}`));
 </script>
@@ -16,5 +16,5 @@
   ]}
 >
   <StatusDot active={workspaceStatus.isBusy(name)} pulse />
-  <span class="truncate">{name}</span>
+  <span class="truncate">{label}</span>
 </a>

@@ -3,6 +3,7 @@
 
   type Workspace = {
     name: string;
+    label: string;
     branch: string;
     isMainWorkspace?: boolean;
   };
@@ -19,7 +20,7 @@
   <!-- Workspace List -->
   <nav class="flex flex-1 flex-col gap-2 overflow-auto p-3">
     {#each workspaces as ws}
-      <WorkspaceCard name={ws.name} />
+      <WorkspaceCard name={ws.name} label={ws.label} />
     {:else}
       <p class="px-2">No workspaces yet.</p>
     {/each}

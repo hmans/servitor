@@ -1,6 +1,6 @@
-import { listWorkspaces } from '$lib/server/workspaces';
+import { redirect } from '@sveltejs/kit';
+import { MAIN_WORKSPACE_NAME } from '$lib/server/workspaces';
 
-export async function load() {
-  const workspaces = listWorkspaces();
-  return { workspaces };
+export function load() {
+  redirect(302, `/workspaces/${MAIN_WORKSPACE_NAME}`);
 }

@@ -7,7 +7,7 @@
   let infoPaneWidth = $state(400);
 </script>
 
-<svelte:head><title>{data.workspace.name} - Servitor</title></svelte:head>
+<svelte:head><title>{data.workspace.label} - Servitor</title></svelte:head>
 
 <div class="flex h-full">
   <!-- Main content -->
