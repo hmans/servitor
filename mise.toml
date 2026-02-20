@@ -5,6 +5,8 @@ pnpm = "latest"
 [tasks.build]
 description = "Build the SvelteKit app"
 run = "pnpm build"
+sources = ["src/**/*", "static/**/*", "vite.config.ts", "svelte.config.js", "tsconfig.json", "package.json"]
+outputs = ["build/**/*"]
 
 [tasks.dev]
 description = "Start the Vite dev server"
