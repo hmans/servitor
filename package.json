@@ -71,5 +71,8 @@
 		"onlyBuiltDependencies": [
 			"esbuild"
 		]
+	},
+	"dependencies": {
+		"commander": "^14.0.3"
 	}
 }
