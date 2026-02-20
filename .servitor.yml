@@ -1,1 +1,3 @@
-worktreesDir: ~/servitor-worktrees
+servitor:
+  port: 5555
+  worktrees: /Users/hmans/.servitor/worktrees/servitor
