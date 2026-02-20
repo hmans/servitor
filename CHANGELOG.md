@@ -1,5 +1,11 @@
 # @hmans/servitor
 
+## 0.3.1
+
+### Patch Changes
+
+- 08b4a1a: Include yaml package in runtime dependencies
+
 ## 0.3.0
 
 ### Minor Changes
