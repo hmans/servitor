@@ -2,6 +2,19 @@
 node = "latest"
 pnpm = "latest"
 
+[tasks.build]
+description = "Build the SvelteKit app"
+run = "pnpm build"
+
+[tasks.dev]
+description = "Start the Vite dev server"
+run = "pnpm dev"
+
+[tasks.servitor]
+description = "Build and start the Servitor server"
+depends = ["build"]
+run = "node bin/servitor.js"
+
 [tasks.test]
 description = "Run unit tests"
 run = "pnpm vitest run --project server"
