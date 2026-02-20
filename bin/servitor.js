@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
+import { parse as parseYaml } from "yaml";
 import { Command } from "commander";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -17,10 +18,29 @@ const program = new Command()
 	.description("Parallel agent orchestrator for high-velocity software development")
 	.version(pkg.version);
 
+function loadConfigPort() {
+	try {
+		const repoRoot = execSync("git rev-parse --show-toplevel", {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		}).trim();
+		const configPath = join(repoRoot, ".servitor.yml");
+		if (existsSync(configPath)) {
+			const yaml = parseYaml(readFileSync(configPath, "utf-8")) ?? {};
+			if (typeof yaml.servitor?.port === "number") {
+				return String(yaml.servitor.port);
+			}
+		}
+	} catch {
+		// not in a git repo or bad yaml — fall through to default
+	}
+	return "5555";
+}
+
 program
 	.command("start", { isDefault: true })
 	.description("Start the Servitor server")
-	.option("-p, --port <port>", "port to listen on", process.env.PORT ?? "4173")
+	.option("-p, --port <port>", "port to listen on", process.env.PORT ?? loadConfigPort())
 	.option("-H, --host <host>", "host to bind to", process.env.HOST ?? "localhost")
 	.action(async (opts) => {
 		try {
