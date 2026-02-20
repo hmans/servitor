@@ -24,7 +24,7 @@
 
 	<PaneResizer bind:width={sidebarWidth} min={180} max={480} side="left" storageKey="pane:sidebar" />
 
-	<main class="flex-1 overflow-auto">
+	<main class="min-h-0 flex-1 overflow-hidden">
 		{@render children()}
 	</main>
 </div>

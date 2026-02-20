@@ -90,6 +90,10 @@ The `result` event that signals end-of-turn may have an empty/falsy `result` tex
 - On `message_complete`, streaming state is cleared and the page refreshes from JSONL files via `invalidateAll()`
 - The `connected` event includes a `processing` flag so the UI can pick up in-progress state on reconnect
 
+## Svelte Conventions
+
+- **Class attributes:** Always use Svelte's clsx-style array syntax for `class` attributes: `class={["base classes", condition && "conditional", flag ? "a" : "b"]}`. Never use template literals or string interpolation for dynamic classes. Falsy values in the array are automatically filtered out.
+
 ## UI Conventions
 
 - TUI-inspired monospace design with dark zinc palette

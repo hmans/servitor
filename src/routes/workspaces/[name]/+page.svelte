@@ -3,8 +3,6 @@
 	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
-	import InfoPane from '$lib/components/InfoPane.svelte';
-	import PaneResizer from '$lib/components/PaneResizer.svelte';
 	import BrailleSpinner from '$lib/components/BrailleSpinner.svelte';
 	import ServitorBit from '$lib/components/ServitorBit.svelte';
 	import StatusDot from '$lib/components/StatusDot.svelte';
@@ -22,16 +20,22 @@
 	const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 	const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
-	let infoPaneWidth = $state(400);
 	let input = $state('');
 	let sending = $state(false);
 	let processAlive = $state(false);
 	let errorMessage = $state('');
 	let executionMode: ExecutionMode = $state('build');
-	let pendingAttachments: Array<{ file: File; preview: string; filename: string; mediaType: string }> = $state([]);
+	let pendingAttachments: Array<{
+		file: File;
+		preview: string;
+		filename: string;
+		mediaType: string;
+	}> = $state([]);
 	let fileInputEl: HTMLInputElement | undefined = $state();
 	let dragOver = $state(false);
-	let verbose = $state(typeof localStorage !== 'undefined' && localStorage.getItem('verbose') === 'true');
+	let verbose = $state(
+		typeof localStorage !== 'undefined' && localStorage.getItem('verbose') === 'true'
+	);
 
 	// Sync execution mode from server data
 	$effect(() => {
@@ -47,7 +51,9 @@
 		if (!messagesEl) return;
 		isProgrammaticScroll = true;
 		messagesEl.scrollTop = messagesEl.scrollHeight;
-		requestAnimationFrame(() => { isProgrammaticScroll = false; });
+		requestAnimationFrame(() => {
+			isProgrammaticScroll = false;
+		});
 	}
 	let eventSource: EventSource | null = null;
 	let expandedMeta: Record<string, boolean> = $state({});
@@ -86,19 +92,29 @@
 		}
 
 		function flush() {
-			if (timer) { clearInterval(timer); timer = null; }
+			if (timer) {
+				clearInterval(timer);
+				timer = null;
+			}
 			revealed = target;
 		}
 
 		function reset() {
-			if (timer) { clearInterval(timer); timer = null; }
+			if (timer) {
+				clearInterval(timer);
+				timer = null;
+			}
 			target = '';
 			revealed = '';
 		}
 
 		return {
-			get revealed() { return revealed; },
-			get target() { return target; },
+			get revealed() {
+				return revealed;
+			},
+			get target() {
+				return target;
+			},
 			setTarget,
 			flush,
 			reset
@@ -156,7 +172,8 @@
 		textTypewriter.setTarget(latest?.text ?? '');
 
 		const thinkingParts = streamingParts.filter((p) => p.type === 'thinking');
-		const latestThinking = thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null;
+		const latestThinking =
+			thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null;
 		thinkingTypewriter.setTarget(latestThinking?.text ?? '');
 
 		if (streamingParts.length === 0) {
@@ -236,15 +253,19 @@
 		// Wrap addEventListener to log all SSE events for debugging
 		const _addEL = es.addEventListener.bind(es);
 		es.addEventListener = (type: string, listener: EventListener, ...rest: any[]) => {
-			_addEL(type, (e: Event) => {
-				const me = e as MessageEvent;
-				try {
-					console.debug(`[SSE] ${type}`, me.data ? JSON.parse(me.data) : '(no data)');
-				} catch {
-					console.debug(`[SSE] ${type}`, me.data ?? '(no data)');
-				}
-				(listener as EventListener)(e);
-			}, ...rest);
+			_addEL(
+				type,
+				(e: Event) => {
+					const me = e as MessageEvent;
+					try {
+						console.debug(`[SSE] ${type}`, me.data ? JSON.parse(me.data) : '(no data)');
+					} catch {
+						console.debug(`[SSE] ${type}`, me.data ?? '(no data)');
+					}
+					(listener as EventListener)(e);
+				},
+				...rest
+			);
 		};
 
 		es.addEventListener('connected', (e) => {
@@ -259,9 +280,7 @@
 			// Restore pending interaction from server data if not actively processing
 			if (!event.processing && data.pendingInteraction) {
 				if (data.pendingInteraction.type === 'enter_plan') {
-					streamingParts = [
-						{ type: 'enter_plan', toolUseId: 'persisted', answered: false }
-					];
+					streamingParts = [{ type: 'enter_plan', toolUseId: 'persisted', answered: false }];
 				} else if (data.pendingInteraction.type === 'ask_user') {
 					streamingParts = [
 						{
@@ -445,7 +464,10 @@
 			return;
 		}
 		const preview = URL.createObjectURL(file);
-		pendingAttachments = [...pendingAttachments, { file, preview, filename: file.name, mediaType: file.type }];
+		pendingAttachments = [
+			...pendingAttachments,
+			{ file, preview, filename: file.name, mediaType: file.type }
+		];
 	}
 
 	function removeAttachment(index: number) {
@@ -518,7 +540,9 @@
 		errorMessage = '';
 
 		// Convert pending attachments to base64 for transport
-		let attachmentsPayload: Array<{ filename: string; mediaType: string; data: string }> | undefined;
+		let attachmentsPayload:
+			| Array<{ filename: string; mediaType: string; data: string }>
+			| undefined;
 		const previewUrls: string[] = [];
 		if (pendingAttachments.length > 0) {
 			attachmentsPayload = await Promise.all(
@@ -588,10 +612,7 @@
 	/** Check whether a label is among the selected answers (works for both single/multi-select) */
 	function isOptionPending(toolUseId: string, questionText: string, label: string): boolean {
 		const answer = pendingAnswers[toolUseId]?.[questionText] ?? '';
-		return answer
-			.split(', ')
-			.filter(Boolean)
-			.includes(label);
+		return answer.split(', ').filter(Boolean).includes(label);
 	}
 
 	/** Check whether a label was selected in a persisted answer */
@@ -601,10 +622,7 @@
 		label: string
 	): boolean {
 		const answer = answers[questionText] ?? '';
-		return answer
-			.split(', ')
-			.filter(Boolean)
-			.includes(label);
+		return answer.split(', ').filter(Boolean).includes(label);
 	}
 
 	function selectOption(
@@ -710,10 +728,7 @@
 		sending = true;
 		activity.setBusy(true);
 		stuckToBottom = true;
-		localMessages = [
-			...localMessages,
-			{ role: 'user', content, ts: new Date().toISOString() }
-		];
+		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
 
 		try {
 			const res = await fetch(`/api/workspaces/${wsName}/messages`, {
@@ -757,9 +772,7 @@
 			await setMode('plan');
 		}
 
-		const content = approved
-			? 'Yes, please plan first.'
-			: 'No, just proceed with implementation.';
+		const content = approved ? 'Yes, please plan first.' : 'No, just proceed with implementation.';
 
 		stuckToBottom = true;
 		localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
@@ -812,8 +825,6 @@
 		}
 	}
 
-
-
 	async function stopProcess() {
 		try {
 			await fetch(`/api/workspaces/${wsName}/kill`, { method: 'POST' });
@@ -843,10 +854,13 @@
 	});
 </script>
 
-<svelte:head><title>{data.workspace.name} - Servitor</title></svelte:head>
-
 <!-- Shared snippet for rendering a question's options (used in both streaming and persisted views) -->
-{#snippet questionOptions(q: AskUserQuestion, toolUseId: string, allQuestions: AskUserQuestion[], interactive: boolean)}
+{#snippet questionOptions(
+	q: AskUserQuestion,
+	toolUseId: string,
+	allQuestions: AskUserQuestion[],
+	interactive: boolean
+)}
 	{@const hasMarkdown = q.options.some((o) => o.markdown)}
 
 	{#if hasMarkdown && interactive}
@@ -863,11 +877,11 @@
 					/>
 				{/each}
 			</div>
-			<div
-				class="flex-1 overflow-auto rounded border border-zinc-700 bg-zinc-900/50 p-3"
-			>
+			<div class="flex-1 overflow-auto rounded border border-zinc-700 bg-zinc-900/50 p-3">
 				{#if q.options.find((o) => o.label === previewOption[toolUseId]?.[q.question])?.markdown}
-					<pre class="whitespace-pre-wrap font-mono text-xs text-zinc-400">{q.options.find((o) => o.label === previewOption[toolUseId]?.[q.question])?.markdown}</pre>
+					<pre class="font-mono text-xs whitespace-pre-wrap text-zinc-400">{q.options.find(
+							(o) => o.label === previewOption[toolUseId]?.[q.question]
+						)?.markdown}</pre>
 				{:else}
 					<span class="text-xs text-zinc-600">Hover an option to preview</span>
 				{/if}
@@ -899,56 +913,65 @@
 	</div>
 {/snippet}
 
-<div class="flex h-full">
-	<!-- Chat column -->
-	<div
-		class="flex min-w-0 flex-1 flex-col border-l-2 px-4 {executionMode === 'plan'
-			? 'border-l-amber-500/50'
-			: 'border-l-transparent'}"
-	>
+<!-- Chat column -->
+<div
+	class={[
+		'flex min-w-0 flex-1 flex-col border-l-2 px-4',
+		executionMode === 'plan' ? 'border-l-amber-500/50' : 'border-l-transparent'
+	]}
+>
 		<!-- Header -->
 		<div
-			class="flex items-center justify-between pb-3 {executionMode === 'plan'
-				? 'border-b border-amber-500/30'
-				: 'border-b border-zinc-800'}"
+			class={[
+				'flex items-center justify-between py-3',
+				executionMode === 'plan' ? 'border-b border-amber-500/30' : 'border-b border-zinc-800'
+			]}
 		>
+			<!-- Title and Status -->
 			<div class="flex items-center gap-2 text-sm">
-				<span class="text-zinc-200">{data.workspace.name}</span>
 				<StatusDot active={processAlive || sending} size="md" />
+				<span class="text-zinc-200">{data.workspace.name}</span>
 			</div>
-			<div class="flex items-center gap-3">
+
+			<!-- Buttons -->
+			<div class="flex items-center gap-2">
 				<!-- Execution mode selector -->
-				<div class="flex gap-1">
-					{#each ['plan', 'build'] as mode}
-						<button
-							onclick={() => setMode(mode as ExecutionMode)}
-							class="tab-btn {executionMode === mode
-								? mode === 'plan'
+				{#each ['plan', 'build'] as mode}
+					<button
+						onclick={() => setMode(mode as ExecutionMode)}
+						class={[
+							'tab-btn',
+							executionMode === mode &&
+								(mode === 'plan'
 									? 'bg-amber-500/20 text-amber-400'
-									: 'bg-green-500/20 text-green-400'
-								: ''}"
-						>
-							{mode}
-						</button>
-					{/each}
-				</div>
+									: 'bg-green-500/20 text-green-400')
+						]}
+					>
+						{mode}
+					</button>
+				{/each}
+
+				<!-- Verbose toggle -->
 				<button
-					onclick={() => { verbose = !verbose; localStorage.setItem('verbose', String(verbose)); }}
-					class="text-xs transition-colors {verbose
-						? 'text-zinc-300'
-						: 'text-zinc-600 hover:text-zinc-400'}"
+					onclick={() => {
+						verbose = !verbose;
+						localStorage.setItem('verbose', String(verbose));
+					}}
+					class={['tab-btn', verbose ? 'text-zinc-300' : 'text-zinc-600 hover:text-zinc-400']}
 				>
-					[verbose]
+					verbose
 				</button>
+
+				<!-- Delete workspace -->
 				<form method="POST" action="?/delete" use:enhance>
 					<button
 						type="submit"
 						onclick={(e: MouseEvent) => {
 							if (!confirm('Delete this workspace and its worktree?')) e.preventDefault();
 						}}
-						class="bracket-btn hover:text-red-400"
+						class="tab-btn hover:text-red-400"
 					>
-						[delete]
+						delete
 					</button>
 				</form>
 			</div>
@@ -956,280 +979,291 @@
 
 		<!-- Messages -->
 		<div class="relative flex-1">
-		<div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3 font-mono">
-			<div class="flex min-h-full flex-col justify-end">
-			{#if localMessages.length === 0 && !sending}
-				<div class="flex h-full items-center justify-center">
-					<p class="empty-state">Type a message to begin.</p>
-				</div>
-			{:else}
-				<div class="space-y-6 leading-[1.8]">
-					{#each localMessages as msg, i (i)}
-						<div class="group">
-							{#if msg.role === 'user' && msg.askUserAnswers}
-								<!-- Persisted answer with rich UI -->
-								<div class="card p-4">
-									{#each msg.askUserAnswers.questions as q}
-										<div class="mb-4 last:mb-0">
-											<div class="section-label">
-												{q.header}
-											</div>
-											<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
-											{@render questionOptionsReadonly(q, msg.askUserAnswers?.answers ?? {})}
-										</div>
-									{/each}
-								</div>
-							{:else if msg.role === 'user'}
-								<div>
-									{#if msg.content}
-										<div
-											class="inline-block whitespace-pre-wrap rounded bg-pink-500/50 px-2 py-0.5 text-sm text-white"
-										>
-											{@html linkifyUrls(msg.content)}
-										</div>
-									{/if}
-									{#if msg.attachments?.length}
-										<div class="mt-1 flex gap-2">
-											{#each msg.attachments as att, attIdx}
-												{@const src = msg._previewUrls?.[attIdx] || (att.id ? `/api/workspaces/${wsName}/attachments/${att.id}` : '')}
-												{#if src}
-													<a
-														href={src}
-														target="_blank"
-														class="block h-20 w-20 overflow-hidden rounded border border-zinc-700 transition-colors hover:border-pink-500"
-													>
-														<img
-															{src}
-															alt={att.filename}
-															class="h-full w-full object-cover"
-														/>
-													</a>
-												{/if}
+			<div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3 font-mono">
+				<div class="flex min-h-full flex-col justify-end">
+					{#if localMessages.length === 0 && !sending}
+						<div class="flex h-full items-center justify-center">
+							<p class="empty-state">Type a message to begin.</p>
+						</div>
+					{:else}
+						<div class="space-y-6 leading-[1.8]">
+							{#each localMessages as msg, i (i)}
+								<div class="group">
+									{#if msg.role === 'user' && msg.askUserAnswers}
+										<!-- Persisted answer with rich UI -->
+										<div class="card p-4">
+											{#each msg.askUserAnswers.questions as q}
+												<div class="mb-4 last:mb-0">
+													<div class="section-label">
+														{q.header}
+													</div>
+													<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
+													{@render questionOptionsReadonly(q, msg.askUserAnswers?.answers ?? {})}
+												</div>
 											{/each}
 										</div>
-									{/if}
-								</div>
-							{:else}
-								{#if msg.thinking && verbose}
-								<MetaPill
-									icon="icon-[uil--brain]"
-									label={expandedMeta[`${i}-thinking`] ? 'Thinking' : 'Thinking...'}
-									expanded={expandedMeta[`${i}-thinking`]}
-									ontoggle={() => toggleMeta(`${i}-thinking`)}
-									truncate={false}
-								>
-									<Markdown content={msg.thinking} />
-								</MetaPill>
-							{/if}
-								{#if msg.toolInvocations?.length}
-								{#if verbose}
-									{#each msg.toolInvocations as tool, ti}
-										<MetaPill
-											icon={toolIcon(tool.tool)}
-											label={humanizeToolUse(tool.tool, tool.input)}
-											expanded={expandedMeta[`${i}-tool-${ti}`]}
-											ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
-										/>
-									{/each}
-								{:else}
-									<div class="mb-1 text-xs text-zinc-600">
-										<span class="text-zinc-600">[tools]</span>
-										{Object.entries(msg.toolInvocations.reduce((acc: Record<string, number>, t) => { acc[t.tool] = (acc[t.tool] || 0) + 1; return acc; }, {})).map(([tool, n]) => n > 1 ? tool + ' x' + n : tool).join(', ')}
-									</div>
-								{/if}
-								{/if}
-								<div class="text-sm text-zinc-300">
-									<Markdown content={msg.content} />
-								</div>
-							{/if}
-						</div>
-					{/each}
-
-					<!-- Streaming content -->
-					{#if streamingParts.length > 0}
-						<div class="space-y-3">
-							{#if thinkingTypewriter.revealed && verbose}
-								<MetaPill
-									icon="icon-[uil--brain]"
-									label={expandedMeta['streaming-thinking'] ? 'Thinking' : 'Thinking...'}
-									expanded={expandedMeta['streaming-thinking']}
-									ontoggle={() => toggleMeta('streaming-thinking')}
-									truncate={false}
-								>
-									<Markdown content={thinkingTypewriter.revealed} />
-								</MetaPill>
-							{/if}
-							{#each streamingParts as part, i (i)}
-								{#if part.type === 'tool_use' && verbose}
-									<MetaPill
-										icon={toolIcon(part.tool)}
-										label={humanizeToolUse(part.tool, part.input)}
-										expanded={expandedMeta[`streaming-tool-${i}`]}
-										ontoggle={() => toggleMeta(`streaming-tool-${i}`)}
-									/>
-								{:else if part.type === 'enter_plan'}
-									<div class="my-3 card border-amber-700/50 bg-amber-500/5 p-4">
-										<div class="section-label text-amber-600">
-											Enter Plan Mode
-										</div>
-										<div class="mb-3 text-sm text-zinc-300">
-											The agent wants to plan before implementing. Switch to plan mode?
-										</div>
-										{#if !part.answered}
-											<div class="flex gap-2">
-												<button
-													onclick={() => approveEnterPlan(true)}
-													class="rounded border border-amber-600 px-4 py-1.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/20"
+									{:else if msg.role === 'user'}
+										<div>
+											{#if msg.content}
+												<div
+													class="inline-block rounded bg-pink-500/50 px-2 py-0.5 text-sm whitespace-pre-wrap text-white"
 												>
-													[plan first]
-												</button>
-												<button
-													onclick={() => approveEnterPlan(false)}
-													class="rounded border border-zinc-600 px-4 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-500/20"
-												>
-													[just build]
-												</button>
-											</div>
-										{/if}
-									</div>
-								{:else if part.type === 'ask_user'}
-									<div class="my-3 card p-4">
-										{#each part.questions as q}
-											<div class="mb-4 last:mb-0">
-												<div class="section-label">
-													{q.header}
+													{@html linkifyUrls(msg.content)}
 												</div>
-												<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
-												{#if part.answered}
-													{@render questionOptionsReadonly(q, part.submittedAnswers ?? {})}
-												{:else}
-													{@render questionOptions(q, part.toolUseId, part.questions, true)}
-												{/if}
-											</div>
-										{/each}
-										{#if !part.answered && needsSubmitButton(part.questions)}
-											{@const answeredCount = Object.keys(
-												pendingAnswers[part.toolUseId] ?? {}
-											).filter((k) => pendingAnswers[part.toolUseId][k]).length}
-											<div
-												class="mt-4 flex items-center gap-3 border-t border-zinc-700/50 pt-3"
-											>
-												<button
-													onclick={() =>
-														submitAnswers(part.toolUseId, part.questions)}
-													disabled={answeredCount === 0}
-													class="rounded border border-pink-600 px-4 py-1.5 text-sm text-pink-400 transition-colors hover:bg-pink-500/20 disabled:cursor-not-allowed disabled:opacity-30"
-												>
-													[submit {answeredCount}/{part.questions.length}]
-												</button>
-												<span class="text-xs text-zinc-600">
-													{answeredCount === part.questions.length
-														? 'All answered'
-														: `${part.questions.length - answeredCount} unanswered`}
-												</span>
-											</div>
-										{/if}
-										{#if !part.answered}
-											<div class="mt-3 flex items-end gap-2 border-t border-zinc-700/50 pt-3">
-												<span class="pb-1.5 text-xs text-zinc-600">or</span>
-												<input
-													type="text"
-													bind:value={customAnswer[part.toolUseId]}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') {
-															e.preventDefault();
-															submitCustomAnswer(part.toolUseId);
-														}
-													}}
-													placeholder="Type a custom answer..."
-													class="flex-1 bg-transparent py-1 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
-												/>
-												<button
-													onclick={() => submitCustomAnswer(part.toolUseId)}
-													disabled={!customAnswer[part.toolUseId]?.trim()}
-													class="bracket-btn pb-0.5"
-												>
-													[reply]
-												</button>
-											</div>
-										{/if}
-									</div>
-								{:else if part.type === 'exit_plan'}
-									<div class="my-3 card p-4">
-										<div class="section-label text-amber-600 flex items-center gap-3">
-											<span>Plan Approval</span>
-											{#if part.planFilePath}
-												<span class="normal-case tracking-normal text-zinc-600">{part.planFilePath}</span>
+											{/if}
+											{#if msg.attachments?.length}
+												<div class="mt-1 flex gap-2">
+													{#each msg.attachments as att, attIdx}
+														{@const src =
+															msg._previewUrls?.[attIdx] ||
+															(att.id ? `/api/workspaces/${wsName}/attachments/${att.id}` : '')}
+														{#if src}
+															<a
+																href={src}
+																target="_blank"
+																class="block h-20 w-20 overflow-hidden rounded border border-zinc-700 transition-colors hover:border-pink-500"
+															>
+																<img {src} alt={att.filename} class="h-full w-full object-cover" />
+															</a>
+														{/if}
+													{/each}
+												</div>
 											{/if}
 										</div>
-										{#if part.planContent}
-											<details open={!part.answered}>
-												<summary class="mb-2 cursor-pointer text-xs text-zinc-500 hover:text-zinc-400">
-													{part.answered ? 'Show plan' : 'Plan details'}
-												</summary>
-												<div class="mb-4 max-h-[60vh] overflow-auto rounded border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
-													<Markdown content={part.planContent} />
+									{:else}
+										{#if msg.thinking && verbose}
+											<MetaPill
+												icon="icon-[uil--brain]"
+												label={expandedMeta[`${i}-thinking`] ? 'Thinking' : 'Thinking...'}
+												expanded={expandedMeta[`${i}-thinking`]}
+												ontoggle={() => toggleMeta(`${i}-thinking`)}
+												truncate={false}
+											>
+												<Markdown content={msg.thinking} />
+											</MetaPill>
+										{/if}
+										{#if msg.toolInvocations?.length}
+											{#if verbose}
+												{#each msg.toolInvocations as tool, ti}
+													<MetaPill
+														icon={toolIcon(tool.tool)}
+														label={humanizeToolUse(tool.tool, tool.input)}
+														expanded={expandedMeta[`${i}-tool-${ti}`]}
+														ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
+													/>
+												{/each}
+											{:else}
+												<div class="mb-1 text-xs text-zinc-600">
+													<span class="text-zinc-600">[tools]</span>
+													{Object.entries(
+														msg.toolInvocations.reduce((acc: Record<string, number>, t) => {
+															acc[t.tool] = (acc[t.tool] || 0) + 1;
+															return acc;
+														}, {})
+													)
+														.map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
+														.join(', ')}
 												</div>
-											</details>
+											{/if}
 										{/if}
-										{#if part.allowedPrompts?.length}
-											<div class="mb-3 text-xs text-zinc-500">
-												Requested permissions: {part.allowedPrompts
-													.map((p) => `${p.tool}: ${p.prompt}`)
-													.join(', ')}
-											</div>
-										{/if}
-										{#if !part.answered}
-											<div class="flex gap-2">
-												<button
-													onclick={() => approvePlan(true)}
-													class="rounded border border-green-600 px-4 py-1.5 text-sm text-green-400 transition-colors hover:bg-green-500/20"
-												>
-													[approve]
-												</button>
-												<button
-													onclick={() => approvePlan(false)}
-													class="rounded border border-red-600 px-4 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-500/20"
-												>
-													[reject]
-												</button>
-											</div>
-										{/if}
-									</div>
-								{/if}
-							{/each}
-							{#if textTypewriter.revealed}
-								<div class="text-sm text-zinc-300">
-									<Markdown content={textTypewriter.revealed} />
+										<div class="text-sm text-zinc-300">
+											<Markdown content={msg.content} />
+										</div>
+									{/if}
 								</div>
-							{/if}
-							{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
+							{/each}
+
+							<!-- Streaming content -->
+							{#if streamingParts.length > 0}
+								<div class="space-y-3">
+									{#if thinkingTypewriter.revealed && verbose}
+										<MetaPill
+											icon="icon-[uil--brain]"
+											label={expandedMeta['streaming-thinking'] ? 'Thinking' : 'Thinking...'}
+											expanded={expandedMeta['streaming-thinking']}
+											ontoggle={() => toggleMeta('streaming-thinking')}
+											truncate={false}
+										>
+											<Markdown content={thinkingTypewriter.revealed} />
+										</MetaPill>
+									{/if}
+									{#each streamingParts as part, i (i)}
+										{#if part.type === 'tool_use' && verbose}
+											<MetaPill
+												icon={toolIcon(part.tool)}
+												label={humanizeToolUse(part.tool, part.input)}
+												expanded={expandedMeta[`streaming-tool-${i}`]}
+												ontoggle={() => toggleMeta(`streaming-tool-${i}`)}
+											/>
+										{:else if part.type === 'enter_plan'}
+											<div class="card my-3 border-amber-700/50 bg-amber-500/5 p-4">
+												<div class="section-label text-amber-600">Enter Plan Mode</div>
+												<div class="mb-3 text-sm text-zinc-300">
+													The agent wants to plan before implementing. Switch to plan mode?
+												</div>
+												{#if !part.answered}
+													<div class="flex gap-2">
+														<button
+															onclick={() => approveEnterPlan(true)}
+															class="rounded border border-amber-600 px-4 py-1.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/20"
+														>
+															[plan first]
+														</button>
+														<button
+															onclick={() => approveEnterPlan(false)}
+															class="rounded border border-zinc-600 px-4 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-500/20"
+														>
+															[just build]
+														</button>
+													</div>
+												{/if}
+											</div>
+										{:else if part.type === 'ask_user'}
+											<div class="card my-3 p-4">
+												{#each part.questions as q}
+													<div class="mb-4 last:mb-0">
+														<div class="section-label">
+															{q.header}
+														</div>
+														<div class="mb-3 text-sm text-zinc-200">{q.question}</div>
+														{#if part.answered}
+															{@render questionOptionsReadonly(q, part.submittedAnswers ?? {})}
+														{:else}
+															{@render questionOptions(q, part.toolUseId, part.questions, true)}
+														{/if}
+													</div>
+												{/each}
+												{#if !part.answered && needsSubmitButton(part.questions)}
+													{@const answeredCount = Object.keys(
+														pendingAnswers[part.toolUseId] ?? {}
+													).filter((k) => pendingAnswers[part.toolUseId][k]).length}
+													<div
+														class="mt-4 flex items-center gap-3 border-t border-zinc-700/50 pt-3"
+													>
+														<button
+															onclick={() => submitAnswers(part.toolUseId, part.questions)}
+															disabled={answeredCount === 0}
+															class="rounded border border-pink-600 px-4 py-1.5 text-sm text-pink-400 transition-colors hover:bg-pink-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+														>
+															[submit {answeredCount}/{part.questions.length}]
+														</button>
+														<span class="text-xs text-zinc-600">
+															{answeredCount === part.questions.length
+																? 'All answered'
+																: `${part.questions.length - answeredCount} unanswered`}
+														</span>
+													</div>
+												{/if}
+												{#if !part.answered}
+													<div class="mt-3 flex items-end gap-2 border-t border-zinc-700/50 pt-3">
+														<span class="pb-1.5 text-xs text-zinc-600">or</span>
+														<input
+															type="text"
+															bind:value={customAnswer[part.toolUseId]}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') {
+																	e.preventDefault();
+																	submitCustomAnswer(part.toolUseId);
+																}
+															}}
+															placeholder="Type a custom answer..."
+															class="flex-1 bg-transparent py-1 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
+														/>
+														<button
+															onclick={() => submitCustomAnswer(part.toolUseId)}
+															disabled={!customAnswer[part.toolUseId]?.trim()}
+															class="bracket-btn pb-0.5"
+														>
+															[reply]
+														</button>
+													</div>
+												{/if}
+											</div>
+										{:else if part.type === 'exit_plan'}
+											<div class="card my-3 p-4">
+												<div class="section-label flex items-center gap-3 text-amber-600">
+													<span>Plan Approval</span>
+													{#if part.planFilePath}
+														<span class="tracking-normal text-zinc-600 normal-case"
+															>{part.planFilePath}</span
+														>
+													{/if}
+												</div>
+												{#if part.planContent}
+													<details open={!part.answered}>
+														<summary
+															class="mb-2 cursor-pointer text-xs text-zinc-500 hover:text-zinc-400"
+														>
+															{part.answered ? 'Show plan' : 'Plan details'}
+														</summary>
+														<div
+															class="mb-4 max-h-[60vh] overflow-auto rounded border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300"
+														>
+															<Markdown content={part.planContent} />
+														</div>
+													</details>
+												{/if}
+												{#if part.allowedPrompts?.length}
+													<div class="mb-3 text-xs text-zinc-500">
+														Requested permissions: {part.allowedPrompts
+															.map((p) => `${p.tool}: ${p.prompt}`)
+															.join(', ')}
+													</div>
+												{/if}
+												{#if !part.answered}
+													<div class="flex gap-2">
+														<button
+															onclick={() => approvePlan(true)}
+															class="rounded border border-green-600 px-4 py-1.5 text-sm text-green-400 transition-colors hover:bg-green-500/20"
+														>
+															[approve]
+														</button>
+														<button
+															onclick={() => approvePlan(false)}
+															class="rounded border border-red-600 px-4 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-500/20"
+														>
+															[reject]
+														</button>
+													</div>
+												{/if}
+											</div>
+										{/if}
+									{/each}
+									{#if textTypewriter.revealed}
+										<div class="text-sm text-zinc-300">
+											<Markdown content={textTypewriter.revealed} />
+										</div>
+									{/if}
+									{#if !streamingParts.some((p) => (p.type === 'enter_plan' || p.type === 'ask_user' || p.type === 'exit_plan') && !p.answered)}
+										<div class="pl-3">
+											<BrailleSpinner />
+										</div>
+									{/if}
+								</div>
+							{:else if sending || activity.busy}
 								<div class="pl-3">
 									<BrailleSpinner />
 								</div>
 							{/if}
 						</div>
-					{:else if sending || activity.busy}
-						<div class="pl-3">
-							<BrailleSpinner />
-						</div>
 					{/if}
 				</div>
-			{/if}
 			</div>
-		</div>
 
-		{#if !stuckToBottom}
-			<button
-				onclick={() => { stuckToBottom = true; scrollToBottom(); }}
-				class="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded border
+			{#if !stuckToBottom}
+				<button
+					onclick={() => {
+						stuckToBottom = true;
+						scrollToBottom();
+					}}
+					class="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded border
 					   border-zinc-700 bg-zinc-900/90 px-3 py-1 text-xs text-zinc-400
 					   backdrop-blur-sm transition-colors hover:border-pink-500
 					   hover:text-pink-400"
-			>
-				[scroll to bottom]
-			</button>
-		{/if}
+				>
+					[scroll to bottom]
+				</button>
+			{/if}
 		</div>
 
 		<!-- Error -->
@@ -1237,9 +1271,8 @@
 			<div class="border-t border-red-900/50 px-3 py-2 text-xs text-red-400">
 				<span class="text-red-600">[error]</span>
 				{errorMessage}
-				<button
-					onclick={() => (errorMessage = '')}
-					class="ml-2 text-red-600 hover:text-red-400">dismiss</button
+				<button onclick={() => (errorMessage = '')} class="ml-2 text-red-600 hover:text-red-400"
+					>dismiss</button
 				>
 			</div>
 		{/if}
@@ -1247,9 +1280,11 @@
 		<!-- Input -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="pt-3 {executionMode === 'plan'
-				? 'border-t border-amber-500/30'
-				: 'border-t border-zinc-800'} {dragOver ? 'ring-1 ring-pink-500/50 rounded' : ''}"
+			class={[
+				'pt-3',
+				executionMode === 'plan' ? 'border-t border-amber-500/30' : 'border-t border-zinc-800',
+				dragOver && 'rounded ring-1 ring-pink-500/50'
+			]}
 			ondrop={handleDrop}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
@@ -1261,8 +1296,9 @@
 							<img src={att.preview} alt={att.filename} class="h-full w-full object-cover" />
 							<button
 								onclick={() => removeAttachment(i)}
-								class="absolute -right-0.5 -top-0.5 hidden h-4 w-4 rounded-full bg-red-600 text-[10px] leading-none text-white group-hover:block"
-							>x</button>
+								class="absolute -top-0.5 -right-0.5 hidden h-4 w-4 rounded-full bg-red-600 text-[10px] leading-none text-white group-hover:block"
+								>x</button
+							>
 						</div>
 					{/each}
 				</div>
@@ -1277,7 +1313,13 @@
 			/>
 			<div class="flex items-center gap-2">
 				<div class="h-14 w-14 shrink-0 overflow-visible">
-					<ServitorBit pulse={activity.pulseCount} busy={activity.busy} toolEmojiId={activity.toolEmojiId} toolEmoji={activity.toolEmoji} onclick={() => composerEl?.focus()} />
+					<ServitorBit
+						pulse={activity.pulseCount}
+						busy={activity.busy}
+						toolEmojiId={activity.toolEmojiId}
+						toolEmoji={activity.toolEmoji}
+						onclick={() => composerEl?.focus()}
+					/>
 				</div>
 				<textarea
 					bind:this={composerEl}
@@ -1286,49 +1328,30 @@
 					onpaste={handlePaste}
 					oninput={(e) => {
 						const el = e.currentTarget;
-						el.style.height = "auto";
-						el.style.height = Math.min(el.scrollHeight, 200) + "px";
+						el.style.height = 'auto';
+						el.style.height = Math.min(el.scrollHeight, 200) + 'px';
 					}}
 					placeholder=""
 					rows="1"
-					class="flex-1 resize-none bg-transparent py-1.5 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
+					class="flex-1 resize-none bg-transparent py-1.5 font-mono text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
 				></textarea>
-				<button
-					onclick={() => fileInputEl?.click()}
-					class="bracket-btn"
-					title="Attach image"
-				>
-					[img]
+				<button onclick={() => fileInputEl?.click()} class="cursor-pointer text-zinc-600 transition-colors hover:text-zinc-300" title="Attach image">
+					<span class="icon-[uil--image-plus]"></span>
 				</button>
 				{#if processAlive}
-					<button
-						onclick={stopProcess}
-						class="bracket-btn text-red-600 hover:text-red-400"
-					>
-						[stop]
+					<button onclick={stopProcess} class="cursor-pointer text-red-600 transition-colors hover:text-red-400" title="Stop agent">
+						<span class="icon-[uil--square-full]"></span>
 					</button>
 				{:else}
 					<button
 						onclick={sendMessage}
 						disabled={!input.trim() && pendingAttachments.length === 0}
-						class="bracket-btn"
+						class="cursor-pointer text-zinc-600 transition-colors hover:text-pink-400 disabled:cursor-not-allowed disabled:opacity-30"
+						title="Send message"
 					>
-						[send]
+						<span class="icon-[uil--message]"></span>
 					</button>
 				{/if}
 			</div>
 		</div>
-	</div>
-
-	<!-- Resizer + Info pane -->
-	<PaneResizer bind:width={infoPaneWidth} min={250} max={700} side="right" storageKey="pane:info" />
-	<div class="hidden shrink-0 overflow-auto bg-zinc-900 px-4 lg:block" style:width="{infoPaneWidth}px">
-		<InfoPane
-			commits={data.commits}
-			committedDiff={data.committedDiff}
-			committedStatus={data.committedStatus}
-			uncommittedDiff={data.uncommittedDiff}
-			uncommittedStatus={data.uncommittedStatus}
-		/>
-	</div>
 </div>

@@ -20,7 +20,7 @@
 				class="flex w-full items-center gap-2 bg-zinc-800/50 px-3 py-2 text-left font-mono text-xs hover:bg-zinc-800"
 			>
 				<span
-					class="inline-block transition-transform {collapsed[i] ? '' : 'rotate-90'}"
+					class={["inline-block transition-transform", !collapsed[i] && "rotate-90"]}
 					aria-hidden="true">&#9654;</span
 				>
 				<span class="flex-1 truncate text-zinc-200">{file.displayPath}</span>
@@ -46,11 +46,10 @@
 							<tbody>
 								{#each hunk.lines as line}
 									<tr
-										class={line.type === 'addition'
-											? 'bg-green-500/10'
-											: line.type === 'deletion'
-												? 'bg-red-500/10'
-												: ''}
+										class={[
+											line.type === 'addition' && 'bg-green-500/10',
+											line.type === 'deletion' && 'bg-red-500/10'
+										]}
 									>
 										<td
 											class="w-[1px] select-none whitespace-nowrap border-r border-zinc-800 px-2 py-0 text-right text-zinc-600"
@@ -63,11 +62,14 @@
 											{line.newLineNo ?? ''}
 										</td>
 										<td
-											class="whitespace-pre px-3 py-0 {line.type === 'addition'
-												? 'text-green-300'
-												: line.type === 'deletion'
-													? 'text-red-300'
-													: 'text-zinc-300'}"
+											class={[
+												"whitespace-pre px-3 py-0",
+												line.type === 'addition'
+													? 'text-green-300'
+													: line.type === 'deletion'
+														? 'text-red-300'
+														: 'text-zinc-300'
+											]}
 										>
 											{line.content}
 										</td>

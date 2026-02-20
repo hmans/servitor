@@ -41,7 +41,7 @@
 	<div class="space-y-0.5 font-mono text-xs">
 		{#each files as file}
 			<div class="list-item">
-				<span class="w-3 shrink-0 {statusColor[file.status]}">{statusLabel[file.status]}</span>
+				<span class={['w-3 shrink-0', statusColor[file.status]]}>{statusLabel[file.status]}</span>
 				<span class="min-w-0 flex-1 truncate text-zinc-300" title={file.path}>{file.path}</span>
 				{#if file.additions > 0 || file.deletions > 0}
 					<span class="shrink-0 text-green-400">+{file.additions}</span>
@@ -54,22 +54,23 @@
 
 <div class="flex h-full flex-col">
 	<!-- Toggle buttons -->
-	<div class="flex gap-1 border-b border-zinc-800 pb-3">
+	<div class="flex gap-1 border-b border-zinc-800 p-3">
 		<button
 			onclick={() => (view = 'status')}
-			class="tab-btn {view === 'status' ? 'bg-zinc-700 text-zinc-100' : ''}"
+			class={['tab-btn', view === 'status' && 'bg-zinc-700 text-zinc-100']}
 		>
-			Status{#if totalStatusCount > 0}<span class="ml-1 text-zinc-400">({totalStatusCount})</span>{/if}
+			Status{#if totalStatusCount > 0}<span class="ml-1 text-zinc-400">({totalStatusCount})</span
+				>{/if}
 		</button>
 		<button
 			onclick={() => (view = 'commits')}
-			class="tab-btn {view === 'commits' ? 'bg-zinc-700 text-zinc-100' : ''}"
+			class={['tab-btn', view === 'commits' && 'bg-zinc-700 text-zinc-100']}
 		>
 			Commits ({commits.length})
 		</button>
 		<button
 			onclick={() => (view = 'diff')}
-			class="tab-btn {view === 'diff' ? 'bg-zinc-700 text-zinc-100' : ''}"
+			class={['tab-btn', view === 'diff' && 'bg-zinc-700 text-zinc-100']}
 		>
 			Diff
 		</button>
@@ -113,22 +114,20 @@
 					{/each}
 				</div>
 			{/if}
+		{:else if !uncommittedDiff && !committedDiff}
+			<p class="empty-state">No diff against base branch.</p>
 		{:else}
-			{#if !uncommittedDiff && !committedDiff}
-				<p class="empty-state">No diff against base branch.</p>
-			{:else}
-				{#if uncommittedDiff}
-					<div class="mb-4">
-						<h3 class="section-label">Uncommitted</h3>
-						<DiffViewer diff={uncommittedDiff} />
-					</div>
-				{/if}
-				{#if committedDiff}
-					<div>
-						<h3 class="section-label">Committed</h3>
-						<DiffViewer diff={committedDiff} />
-					</div>
-				{/if}
+			{#if uncommittedDiff}
+				<div class="mb-4">
+					<h3 class="section-label">Uncommitted</h3>
+					<DiffViewer diff={uncommittedDiff} />
+				</div>
+			{/if}
+			{#if committedDiff}
+				<div>
+					<h3 class="section-label">Committed</h3>
+					<DiffViewer diff={committedDiff} />
+				</div>
 			{/if}
 		{/if}
 	</div>

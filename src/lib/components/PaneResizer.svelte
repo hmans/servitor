@@ -87,8 +87,9 @@
 	{onkeydown}
 >
 	<div
-		class="h-full w-px transition-colors {dragging
-			? 'bg-blue-500'
-			: 'bg-zinc-800 group-hover:bg-zinc-600'}"
+		class={[
+			"h-full w-px transition-colors",
+			dragging ? "bg-blue-500" : "bg-zinc-800 group-hover:bg-zinc-600"
+		]}
 	></div>
 </div>

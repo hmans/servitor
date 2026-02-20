@@ -24,4 +24,4 @@
 	class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
 	class:truncate={truncate && !expanded}
 	onclick={ontoggle}
-><span class="{icon} mr-1 inline-block align-text-bottom"></span>{label}{#if expanded && children}{@render children()}{/if}</div>
+><span class={[icon, "mr-1 inline-block align-text-bottom"]}></span>{label}{#if expanded && children}{@render children()}{/if}</div>
