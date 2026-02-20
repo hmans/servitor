@@ -38,6 +38,10 @@ export interface ToolInvocation {
   input: string;
 }
 
+export type MessagePart =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; tool: string; toolUseId: string; input: string };
+
 export interface AskUserAnswerData {
   questions: Array<{
     question: string;
@@ -61,6 +65,8 @@ export interface Message {
   content: string;
   thinking?: string;
   toolInvocations?: ToolInvocation[];
+  /** Ordered content parts preserving interleaving of text and tool invocations */
+  parts?: MessagePart[];
   askUserAnswers?: AskUserAnswerData;
   attachments?: Attachment[];
   ts: string;

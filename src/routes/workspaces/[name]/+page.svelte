@@ -10,7 +10,7 @@
   import OptionButton from '$lib/components/OptionButton.svelte';
 
   import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
-  import type { Attachment } from '$lib/server/conversations';
+  import type { Attachment, MessagePart } from '$lib/server/conversations';
   import { activity } from '$lib/stores/activity.svelte';
   import { linkifyUrls } from '$lib/linkify';
   import { toolIcon, humanizeToolUse } from '$lib/utils/tool-display';
@@ -151,6 +151,7 @@
     content: string;
     thinking?: string;
     toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
+    parts?: MessagePart[];
     askUserAnswers?: { questions: AskUserQuestion[]; answers: Record<string, string> };
     attachments?: Attachment[];
     /** Optimistic preview URLs (object URLs) keyed by attachment index */
@@ -231,6 +232,38 @@
   });
 
   const wsName = $derived(data.workspace.name);
+
+  // Index of the last text part in streamingParts (for typewriter rendering)
+  const lastStreamingTextIndex = $derived.by(() => {
+    for (let i = streamingParts.length - 1; i >= 0; i--) {
+      if (streamingParts[i].type === 'text') return i;
+    }
+    return -1;
+  });
+
+  type GroupedPart =
+    | { type: 'text'; text: string }
+    | { type: 'tool_use'; tool: string; toolUseId: string; input: string }
+    | { type: 'tool_group'; tools: Array<{ tool: string; toolUseId: string; input: string }> };
+
+  /** Group consecutive tool_use parts into summaries for non-verbose rendering */
+  function groupMessageParts(parts: MessagePart[], isVerbose: boolean): GroupedPart[] {
+    if (isVerbose) return parts as GroupedPart[];
+    const groups: GroupedPart[] = [];
+    for (const part of parts) {
+      if (part.type === 'text') {
+        groups.push(part);
+      } else {
+        const last = groups[groups.length - 1];
+        if (last?.type === 'tool_group') {
+          last.tools.push(part);
+        } else {
+          groups.push({ type: 'tool_group', tools: [{ ...part }] });
+        }
+      }
+    }
+    return groups;
+  }
 
   // SSE lifecycle
   $effect(() => {
@@ -318,7 +351,15 @@
       sending = false;
       activity.setBusy(true);
       activity.pulse();
-      streamingParts = [...streamingParts, { type: 'text', text: event.text }];
+      // Consolidate: update last text part if exists, otherwise add new
+      const lastPart = streamingParts[streamingParts.length - 1];
+      if (lastPart?.type === 'text') {
+        streamingParts = streamingParts.map((p, idx) =>
+          idx === streamingParts.length - 1 ? { ...p, text: event.text } : p
+        );
+      } else {
+        streamingParts = [...streamingParts, { type: 'text', text: event.text }];
+      }
     });
 
     es.addEventListener('tool_use_start', (e) => {
@@ -1040,33 +1081,67 @@
                       <Markdown content={msg.thinking} />
                     </MetaPill>
                   {/if}
-                  {#if msg.toolInvocations?.length}
-                    {#if verbose}
-                      {#each msg.toolInvocations as tool, ti}
+                  {#if msg.parts?.length}
+                    <!-- Interleaved rendering using ordered parts -->
+                    {#each groupMessageParts(msg.parts, verbose) as group, gi}
+                      {#if group.type === 'text'}
+                        <div class="text-sm text-zinc-300">
+                          <Markdown content={group.text} />
+                        </div>
+                      {:else if group.type === 'tool_use'}
                         <MetaPill
-                          icon={toolIcon(tool.tool)}
-                          label={humanizeToolUse(tool.tool, tool.input)}
-                          expanded={expandedMeta[`${i}-tool-${ti}`]}
-                          ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
+                          icon={toolIcon(group.tool)}
+                          label={humanizeToolUse(group.tool, group.input)}
+                          expanded={expandedMeta[`${i}-tool-${gi}`]}
+                          ontoggle={() => toggleMeta(`${i}-tool-${gi}`)}
                         />
-                      {/each}
-                    {:else}
-                      <div class="mb-1 text-xs text-zinc-600">
-                        <span class="text-zinc-600">[tools]</span>
-                        {Object.entries(
-                          msg.toolInvocations.reduce((acc: Record<string, number>, t) => {
-                            acc[t.tool] = (acc[t.tool] || 0) + 1;
-                            return acc;
-                          }, {})
-                        )
-                          .map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
-                          .join(', ')}
-                      </div>
+                      {:else if group.type === 'tool_group'}
+                        <div class="mb-1 text-xs text-zinc-600">
+                          <span class="text-zinc-600">[tools]</span>
+                          {Object.entries(
+                            group.tools.reduce(
+                              (acc: Record<string, number>, t) => {
+                                acc[t.tool] = (acc[t.tool] || 0) + 1;
+                                return acc;
+                              },
+                              {} as Record<string, number>
+                            )
+                          )
+                            .map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
+                            .join(', ')}
+                        </div>
+                      {/if}
+                    {/each}
+                  {:else}
+                    <!-- Fallback: old unordered rendering for pre-parts messages -->
+                    {#if msg.toolInvocations?.length}
+                      {#if verbose}
+                        {#each msg.toolInvocations as tool, ti}
+                          <MetaPill
+                            icon={toolIcon(tool.tool)}
+                            label={humanizeToolUse(tool.tool, tool.input)}
+                            expanded={expandedMeta[`${i}-tool-${ti}`]}
+                            ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
+                          />
+                        {/each}
+                      {:else}
+                        <div class="mb-1 text-xs text-zinc-600">
+                          <span class="text-zinc-600">[tools]</span>
+                          {Object.entries(
+                            msg.toolInvocations.reduce((acc: Record<string, number>, t) => {
+                              acc[t.tool] = (acc[t.tool] || 0) + 1;
+                              return acc;
+                            }, {})
+                          )
+                            .map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
+                            .join(', ')}
+                        </div>
+                      {/if}
                     {/if}
+                    <div class="text-sm text-zinc-300">
+                      <Markdown content={msg.content} />
+                    </div>
                   {/if}
-                  <div class="text-sm text-zinc-300">
-                    <Markdown content={msg.content} />
-                  </div>
                 {/if}
               </div>
             {/each}
@@ -1086,7 +1161,15 @@
                   </MetaPill>
                 {/if}
                 {#each streamingParts as part, i (i)}
-                  {#if part.type === 'tool_use' && verbose}
+                  {#if part.type === 'text'}
+                    {@const isLast = i === lastStreamingTextIndex}
+                    {@const text = isLast ? textTypewriter.revealed : part.text}
+                    {#if text}
+                      <div class="text-sm text-zinc-300">
+                        <Markdown content={text} />
+                      </div>
+                    {/if}
+                  {:else if part.type === 'tool_use' && verbose}
                     <MetaPill
                       icon={toolIcon(part.tool)}
                       label={humanizeToolUse(part.tool, part.input)}
@@ -1225,11 +1308,6 @@
                     </div>
                   {/if}
                 {/each}
-                {#if textTypewriter.revealed}
-                  <div class="text-sm text-zinc-300">
-                    <Markdown content={textTypewriter.revealed} />
-                  </div>
-                {/if}
               </div>
             {/if}
           </div>

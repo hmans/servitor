@@ -7,10 +7,10 @@ import type {
   ExecutionMode,
   MessageContent
 } from './types';
-import { setPendingInteraction, type ToolInvocation } from '$lib/server/conversations';
+import { setPendingInteraction, type ToolInvocation, type MessagePart } from '$lib/server/conversations';
 import { logger } from '../logger';
 
-export type { ToolInvocation };
+export type { ToolInvocation, MessagePart };
 
 export type ConversationEvent =
   | { type: 'user_message'; messageId: string; content: string }
@@ -25,6 +25,8 @@ interface ActiveConversation {
   cwd: string;
   /** Tool calls accumulated during the current turn */
   toolInvocations: ToolInvocation[];
+  /** Ordered parts (text + tool_use) accumulated during the current turn */
+  turnParts: MessagePart[];
   /** Text accumulated during the current turn */
   turnText: string;
   /** Thinking text accumulated during the current turn */
@@ -35,7 +37,8 @@ interface ActiveConversation {
         text: string,
         sessionId: string,
         toolInvocations: ToolInvocation[],
-        thinking: string
+        thinking: string,
+        parts: MessagePart[]
       ) => void)
     | null;
   /** Last known session ID for resumption */
@@ -84,6 +87,7 @@ function getOrCreate(conversationId: string): ActiveConversation {
       agentType: '',
       cwd: '',
       toolInvocations: [],
+      turnParts: [],
       turnText: '',
       turnThinking: '',
       onComplete: null,
@@ -120,7 +124,8 @@ export function sendMessage(
       text: string,
       sessionId: string,
       toolInvocations: ToolInvocation[],
-      thinking: string
+      thinking: string,
+      parts: MessagePart[]
     ) => void;
   }
 ): void {
@@ -140,6 +145,7 @@ export function sendMessage(
 
   // Reset turn state for this new turn
   conv.toolInvocations = [];
+  conv.turnParts = [];
   conv.turnText = '';
   conv.turnThinking = '';
 
@@ -184,6 +190,13 @@ export function sendMessage(
     // Accumulate text and thinking for the current turn
     if (event.type === 'text_delta') {
       conv.turnText = event.text; // text_delta contains full accumulated text, not a delta
+      // Track ordered parts: update last text part or add new one
+      const lastPart = conv.turnParts[conv.turnParts.length - 1];
+      if (lastPart?.type === 'text') {
+        lastPart.text = event.text;
+      } else {
+        conv.turnParts.push({ type: 'text', text: event.text });
+      }
     }
     if (event.type === 'thinking') {
       conv.turnThinking = event.text; // accumulated (not delta)
@@ -200,8 +213,19 @@ export function sendMessage(
 
       // Persist partial assistant message if there's accumulated content
       if ((conv.turnText || conv.toolInvocations.length > 0) && conv.onComplete) {
-        conv.onComplete(conv.turnText, event.sessionId, conv.toolInvocations, conv.turnThinking);
+        const allText = conv.turnParts
+          .filter((p): p is MessagePart & { type: 'text' } => p.type === 'text')
+          .map((p) => p.text)
+          .join('\n\n');
+        conv.onComplete(
+          allText || conv.turnText,
+          event.sessionId,
+          conv.toolInvocations,
+          conv.turnThinking,
+          [...conv.turnParts]
+        );
         conv.toolInvocations = [];
+        conv.turnParts = [];
         conv.turnText = '';
         conv.turnThinking = '';
       }
@@ -255,6 +279,12 @@ export function sendMessage(
         toolUseId: event.toolUseId,
         input: event.input
       });
+      conv.turnParts.push({
+        type: 'tool_use',
+        tool: event.tool,
+        toolUseId: event.toolUseId,
+        input: event.input
+      });
     }
 
     for (const fn of conv.listeners) {
@@ -266,10 +296,21 @@ export function sendMessage(
       broadcastStatus(conversationId, false);
       conv.lastSessionId = event.sessionId || conv.lastSessionId;
       if (conv.onComplete) {
-        // The result event's text field may be empty — fall back to accumulated turnText
-        const finalText = event.text || conv.turnText;
-        conv.onComplete(finalText, event.sessionId, conv.toolInvocations, conv.turnThinking);
+        // The result event's text field may be empty — fall back to accumulated turnParts/turnText
+        const allText = conv.turnParts
+          .filter((p): p is MessagePart & { type: 'text' } => p.type === 'text')
+          .map((p) => p.text)
+          .join('\n\n');
+        const finalText = event.text || allText || conv.turnText;
+        conv.onComplete(
+          finalText,
+          event.sessionId,
+          conv.toolInvocations,
+          conv.turnThinking,
+          [...conv.turnParts]
+        );
         conv.toolInvocations = [];
+        conv.turnParts = [];
         conv.turnText = '';
         conv.turnThinking = '';
       }
