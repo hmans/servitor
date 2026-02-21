@@ -319,6 +319,10 @@ export function sendMessage(
     if (event.type === 'done') {
       conv.busy = false;
       conv.process = null;
+      conv.turnText = '';
+      conv.turnThinking = '';
+      conv.turnParts = [];
+      conv.toolInvocations = [];
       broadcastStatus(conversationId, false);
     }
   });

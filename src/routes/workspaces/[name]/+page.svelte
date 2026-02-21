@@ -221,26 +221,22 @@
     // done handler can skip a redundant invalidateAll().
     let turnCompleted = false;
 
-    // Wrap addEventListener to log all SSE events for debugging
-    const _addEL = es.addEventListener.bind(es);
-    es.addEventListener = (type: string, listener: EventListener, ...rest: any[]) => {
-      _addEL(
-        type,
-        (e: Event) => {
-          const me = e as MessageEvent;
-          try {
-            console.debug(`[SSE] ${type}`, me.data ? JSON.parse(me.data) : '(no data)');
-          } catch {
-            console.debug(`[SSE] ${type}`, me.data ?? '(no data)');
-          }
-          (listener as EventListener)(e);
-        },
-        ...rest
-      );
-    };
+    /** Subscribe to an SSE event with debug logging and JSON parsing. */
+    function listenSSE<T = Record<string, unknown>>(type: string, handler: (data: T) => void) {
+      es.addEventListener(type, (e) => {
+        const me = e as MessageEvent;
+        let parsed: T | undefined;
+        try {
+          parsed = me.data ? JSON.parse(me.data) : undefined;
+        } catch {
+          // not JSON
+        }
+        console.debug(`[SSE] ${type}`, parsed ?? me.data ?? '(no data)');
+        handler(parsed as T);
+      });
+    }
 
-    es.addEventListener('connected', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ processing: boolean }>('connected', (event) => {
 
       // If agent is mid-turn, show busy state immediately
       if (event.processing) {
@@ -276,8 +272,7 @@
       }
     });
 
-    es.addEventListener('thinking', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ text: string }>('thinking', (event) => {
       agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
@@ -291,8 +286,7 @@
       }
     });
 
-    es.addEventListener('text_delta', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ text: string }>('text_delta', (event) => {
       agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
@@ -306,8 +300,7 @@
       }
     });
 
-    es.addEventListener('tool_use_start', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ tool: string; input?: string; toolUseId: string }>('tool_use_start', (event) => {
       agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
@@ -323,8 +316,7 @@
       ];
     });
 
-    es.addEventListener('enter_plan', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ toolUseId: string }>('enter_plan', (event) => {
       agentState = 'idle';
       streamingParts = [
         ...streamingParts,
@@ -332,8 +324,7 @@
       ];
     });
 
-    es.addEventListener('ask_user', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{ toolUseId: string; questions: AskUserQuestion[] }>('ask_user', (event) => {
       // Process will be killed by the server
       agentState = 'idle';
       streamingParts = [
@@ -347,8 +338,12 @@
       ];
     });
 
-    es.addEventListener('exit_plan', (e) => {
-      const event = JSON.parse(e.data);
+    listenSSE<{
+      toolUseId: string;
+      allowedPrompts?: Array<{ tool: string; prompt: string }>;
+      planContent?: string;
+      planFilePath?: string;
+    }>('exit_plan', (event) => {
       // Process will be killed by the server
       agentState = 'idle';
       streamingParts = [
@@ -364,7 +359,7 @@
       ];
     });
 
-    es.addEventListener('message_complete', async () => {
+    listenSSE('message_complete', async () => {
       turnCompleted = true;
       agentState = 'idle';
       activity.setBusy(false);
@@ -383,7 +378,7 @@
       scrollToBottom();
     });
 
-    es.addEventListener('done', async () => {
+    listenSSE('done', async () => {
       agentState = 'idle';
       activity.setBusy(false);
 
@@ -413,18 +408,19 @@
       scrollToBottom();
     });
 
-    es.addEventListener('worktree_changed', async () => {
+    listenSSE('worktree_changed', async () => {
       if (document.visibilityState === 'visible') {
         await invalidateAll();
       }
     });
 
+    // Error uses raw addEventListener since EventSource error events aren't JSON MessageEvents
     es.addEventListener('error', (e) => {
       try {
         const event = JSON.parse((e as MessageEvent).data);
         if (event.message) errorMessage = event.message;
       } catch {
-        // Native EventSource error
+        // Native EventSource error (connection lost, etc.)
       }
       agentState = 'idle';
       activity.setBusy(false);
@@ -611,7 +607,7 @@
           </div>
         {:else}
           <div class="space-y-6 leading-[1.8]">
-            {#each localMessages as msg, i (i)}
+            {#each localMessages as msg (msg.ts)}
               {#if msg.role === 'system'}
                 <div class="flex items-start gap-3">
                   <span class="icon-[uil--square-full] mt-0.5 shrink-0 text-fg-faint"></span>
