@@ -65,7 +65,7 @@
 
   // Sync from server data when it changes
   $effect(() => {
-    localMessages = [...data.messages];
+    localMessages = data.messages;
   });
 
   // Auto-scroll: when stuck to bottom, scroll unconditionally on any DOM mutation.
@@ -193,10 +193,9 @@
       // Consolidate: update last thinking part if exists, otherwise add new
       const lastPart = streamingParts[streamingParts.length - 1];
       if (lastPart?.type === 'thinking') {
-        streamingParts[streamingParts.length - 1] = { ...lastPart, text: event.text };
-        streamingParts = streamingParts;
+        lastPart.text = event.text;
       } else {
-        streamingParts = [...streamingParts, { type: 'thinking', text: event.text }];
+        streamingParts.push({ type: 'thinking', text: event.text });
       }
     });
 
@@ -207,10 +206,9 @@
       // Consolidate: update last text part if exists, otherwise add new
       const lastPart = streamingParts[streamingParts.length - 1];
       if (lastPart?.type === 'text') {
-        streamingParts[streamingParts.length - 1] = { ...lastPart, text: event.text };
-        streamingParts = streamingParts;
+        lastPart.text = event.text;
       } else {
-        streamingParts = [...streamingParts, { type: 'text', text: event.text }];
+        streamingParts.push({ type: 'text', text: event.text });
       }
     });
 
@@ -219,37 +217,28 @@
       activity.setBusy(true);
       activity.pulse();
       activity.emitToolEmoji(event.tool);
-      streamingParts = [
-        ...streamingParts,
-        {
-          type: 'tool_use',
-          tool: event.tool,
-          input: event.input ?? '',
-          toolUseId: event.toolUseId
-        }
-      ];
+      streamingParts.push({
+        type: 'tool_use',
+        tool: event.tool,
+        input: event.input ?? '',
+        toolUseId: event.toolUseId
+      });
     });
 
     listenSSE<{ toolUseId: string }>('enter_plan', (event) => {
       agentState = 'idle';
-      streamingParts = [
-        ...streamingParts,
-        { type: 'enter_plan', toolUseId: event.toolUseId, answered: false }
-      ];
+      streamingParts.push({ type: 'enter_plan', toolUseId: event.toolUseId, answered: false });
     });
 
     listenSSE<{ toolUseId: string; questions: AskUserQuestion[] }>('ask_user', (event) => {
       // Process will be killed by the server
       agentState = 'idle';
-      streamingParts = [
-        ...streamingParts,
-        {
-          type: 'ask_user',
-          toolUseId: event.toolUseId,
-          questions: event.questions,
-          answered: false
-        }
-      ];
+      streamingParts.push({
+        type: 'ask_user',
+        toolUseId: event.toolUseId,
+        questions: event.questions,
+        answered: false
+      });
     });
 
     listenSSE<{
@@ -260,17 +249,14 @@
     }>('exit_plan', (event) => {
       // Process will be killed by the server
       agentState = 'idle';
-      streamingParts = [
-        ...streamingParts,
-        {
-          type: 'exit_plan',
-          toolUseId: event.toolUseId,
-          allowedPrompts: event.allowedPrompts,
-          planContent: event.planContent,
-          planFilePath: event.planFilePath,
-          answered: false
-        }
-      ];
+      streamingParts.push({
+        type: 'exit_plan',
+        toolUseId: event.toolUseId,
+        allowedPrompts: event.allowedPrompts,
+        planContent: event.planContent,
+        planFilePath: event.planFilePath,
+        answered: false
+      });
     });
 
     listenSSE('message_complete', async () => {
@@ -368,10 +354,7 @@
     errorMessage = '';
     stuckToBottom = true;
 
-    localMessages = [
-      ...localMessages,
-      { role: 'user', content, ts: new Date().toISOString(), ...opts?.localExtra }
-    ];
+    localMessages.push({ role: 'user', content, ts: new Date().toISOString(), ...opts?.localExtra });
 
     try {
       const res = await fetch(`/api/workspaces/${wsName}/messages`, {
@@ -473,10 +456,7 @@
     activity.setBusy(false);
 
     // Optimistically show the stop message (server persists it too)
-    localMessages = [
-      ...localMessages,
-      { role: 'system', content: 'Stopped by user', ts: new Date().toISOString() }
-    ];
+    localMessages.push({ role: 'system', content: 'Stopped by user', ts: new Date().toISOString() });
 
     await invalidateAll();
   }
