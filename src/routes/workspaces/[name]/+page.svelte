@@ -955,14 +955,14 @@
 <!-- Chat column -->
 <div
   class={[
-    'flex min-w-0 flex-1 flex-col border-l-2 px-4',
+    'flex min-w-0 flex-1 flex-col border-l-2',
     executionMode === 'plan' ? 'border-l-amber-500/50' : 'border-l-transparent'
   ]}
 >
   <!-- Header -->
   <div
     class={[
-      'flex items-center justify-between py-3',
+      'flex items-center justify-between p-4',
       executionMode === 'plan' ? 'border-b border-amber-500/30' : 'border-b border-zinc-800'
     ]}
   >
@@ -1020,7 +1020,7 @@
 
   <!-- Messages -->
   <div class="relative flex-1">
-    <div bind:this={messagesEl} class="absolute inset-0 overflow-auto py-3 font-mono">
+    <div bind:this={messagesEl} class="absolute inset-0 overflow-auto p-4 font-mono">
       <div class="flex min-h-full flex-col justify-end">
         {#if localMessages.length === 0 && !sending}
           <div class="flex h-full items-center justify-center">
@@ -1361,7 +1361,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class={[
-      'pt-3',
+      'p-4',
       executionMode === 'plan' ? 'border-t border-amber-500/30' : 'border-t border-zinc-800',
       dragOver && 'rounded ring-1 ring-pink-500/50'
     ]}
