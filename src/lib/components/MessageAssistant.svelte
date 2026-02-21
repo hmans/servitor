@@ -1,0 +1,67 @@
+<script lang="ts">
+  import Markdown from '$lib/components/Markdown.svelte';
+  import { toolIcon, humanizeToolUse } from '$lib/utils/tool-display';
+
+  import type { MessagePart } from '$lib/server/conversations';
+
+  let {
+    content,
+    thinking,
+    verbose,
+    parts,
+    toolInvocations
+  }: {
+    content: string;
+    thinking?: string;
+    verbose: boolean;
+    parts?: MessagePart[];
+    toolInvocations?: Array<{ tool: string; toolUseId: string; input: string }>;
+  } = $props();
+</script>
+
+{#if thinking && verbose}
+  <div class="flex items-start gap-3">
+    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-zinc-600"></span>
+    <div class="min-w-0 flex-1 text-sm text-zinc-500">
+      <Markdown content={thinking} />
+    </div>
+  </div>
+{/if}
+{#if parts?.length}
+  {#each parts as part}
+    {#if part.type === 'text'}
+      <div class="flex items-start gap-3">
+        <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
+        <div class="min-w-0 flex-1 text-sm text-zinc-300">
+          <Markdown content={part.text} />
+        </div>
+      </div>
+    {:else if part.type === 'tool_use'}
+      <div class="flex items-start gap-3">
+        <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+        <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          {humanizeToolUse(part.tool, part.input)}
+        </div>
+      </div>
+    {/if}
+  {/each}
+{:else}
+  {#if toolInvocations?.length}
+    {#each toolInvocations as tool}
+      <div class="flex items-start gap-3">
+        <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+        <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          {humanizeToolUse(tool.tool, tool.input)}
+        </div>
+      </div>
+    {/each}
+  {/if}
+  {#if content}
+    <div class="flex items-start gap-3">
+      <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
+      <div class="min-w-0 flex-1 text-sm text-zinc-300">
+        <Markdown {content} />
+      </div>
+    </div>
+  {/if}
+{/if}
