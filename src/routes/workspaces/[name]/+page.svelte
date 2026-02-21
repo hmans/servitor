@@ -430,6 +430,12 @@
       scrollToBottom();
     });
 
+    es.addEventListener('worktree_changed', async () => {
+      if (document.visibilityState === 'visible') {
+        await invalidateAll();
+      }
+    });
+
     es.addEventListener('error', (e) => {
       try {
         const event = JSON.parse((e as MessageEvent).data);
@@ -445,9 +451,18 @@
 
     eventSource = es;
 
+    // Catch up on missed worktree changes when tab becomes visible
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        invalidateAll();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       es.close();
       eventSource = null;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   });
 

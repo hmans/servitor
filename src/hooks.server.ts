@@ -1,10 +1,12 @@
 import { logger } from '$lib/server/logger';
 import { killAll } from '$lib/server/agents/manager';
+import { closeAllWatchers } from '$lib/server/worktree-watcher';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 
 function shutdown() {
   logger.info('Shutting down');
   killAll();
+  closeAllWatchers();
   process.exit(0);
 }
 

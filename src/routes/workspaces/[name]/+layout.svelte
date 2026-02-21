@@ -1,21 +1,10 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
   import InfoPane from '$lib/components/InfoPane.svelte';
   import PaneResizer from '$lib/components/PaneResizer.svelte';
 
   let { data, children } = $props();
 
   let infoPaneWidth = $state(400);
-
-  $effect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        invalidateAll();
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  });
 </script>
 
 <svelte:head><title>{data.workspace.label} - Servitor</title></svelte:head>
