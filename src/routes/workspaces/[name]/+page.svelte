@@ -2,6 +2,7 @@
   import { browser } from '$app/environment';
   import { afterNavigate, invalidateAll } from '$app/navigation';
   import { onDestroy, tick } from 'svelte';
+  import { fade } from 'svelte/transition';
   import Composer from '$lib/components/Composer.svelte';
   import MessageAssistant from '$lib/components/MessageAssistant.svelte';
   import MessageUser from '$lib/components/MessageUser.svelte';
@@ -45,68 +46,6 @@
   }
   let eventSource: EventSource | null = null;
 
-  // Typewriter: progressively reveal streamed text word by word
-  function createTypewriter(pulseBit = true) {
-    let revealed = $state('');
-    let target = $state('');
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    function start() {
-      if (timer) return;
-      timer = setInterval(() => {
-        if (revealed.length >= target.length) {
-          if (timer) clearInterval(timer);
-          timer = null;
-          return;
-        }
-        let next = target.indexOf(' ', revealed.length);
-        if (next === -1) next = target.length;
-        else next++;
-        revealed = target.slice(0, next);
-        if (pulseBit) activity.pulse();
-      }, 20);
-    }
-
-    function setTarget(text: string) {
-      if (text !== target) {
-        target = text;
-        start();
-      }
-    }
-
-    function flush() {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-      revealed = target;
-    }
-
-    function reset() {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-      target = '';
-      revealed = '';
-    }
-
-    return {
-      get revealed() {
-        return revealed;
-      },
-      get target() {
-        return target;
-      },
-      setTarget,
-      flush,
-      reset
-    };
-  }
-
-  const textTypewriter = createTypewriter(true);
-  const thinkingTypewriter = createTypewriter(false);
-
   // Streaming state — built up as SSE events arrive
   let streamingParts: StreamingPart[] = $state([]);
 
@@ -127,23 +66,6 @@
   // Sync from server data when it changes
   $effect(() => {
     localMessages = [...data.messages];
-  });
-
-  // Feed streaming text and thinking into their typewriters
-  $effect(() => {
-    const textParts = streamingParts.filter((p) => p.type === 'text');
-    const latest = textParts.length > 0 ? textParts[textParts.length - 1] : null;
-    textTypewriter.setTarget(latest?.text ?? '');
-
-    const thinkingParts = streamingParts.filter((p) => p.type === 'thinking');
-    const latestThinking =
-      thinkingParts.length > 0 ? thinkingParts[thinkingParts.length - 1] : null;
-    thinkingTypewriter.setTarget(latestThinking?.text ?? '');
-
-    if (streamingParts.length === 0) {
-      textTypewriter.reset();
-      thinkingTypewriter.reset();
-    }
   });
 
   // Auto-scroll: when stuck to bottom, scroll unconditionally on any DOM mutation.
@@ -197,14 +119,6 @@
   });
 
   const wsName = $derived(data.workspace.name);
-
-  // Index of the last text part in streamingParts (for typewriter rendering)
-  const lastStreamingTextIndex = $derived.by(() => {
-    for (let i = streamingParts.length - 1; i >= 0; i--) {
-      if (streamingParts[i].type === 'text') return i;
-    }
-    return -1;
-  });
 
   // SSE lifecycle
   $effect(() => {
@@ -364,10 +278,6 @@
       agentState = 'idle';
       activity.setBusy(false);
 
-      // Instantly finish typewriters so there's no gap
-      textTypewriter.flush();
-      thinkingTypewriter.flush();
-
       // Load persisted messages first, THEN clear streaming parts.
       // This prevents a flash where neither streaming nor persisted text is visible.
       await invalidateAll();
@@ -381,10 +291,6 @@
     listenSSE('done', async () => {
       agentState = 'idle';
       activity.setBusy(false);
-
-      // Instantly finish typewriters
-      textTypewriter.flush();
-      thinkingTypewriter.flush();
 
       // Preserve streaming parts if there's a pending interaction
       const hasPendingInteraction = streamingParts.some(
@@ -608,50 +514,51 @@
         {:else}
           <div class="space-y-6 leading-[1.8]">
             {#each localMessages as msg (msg.ts)}
-              {#if msg.role === 'system'}
-                <div class="flex items-start gap-3">
-                  <span
-                    class={[
-                      'mt-0.5 shrink-0 text-fg-faint',
-                      msg.content === 'Stopped by user'
-                        ? 'icon-[mdi--stop]'
-                        : 'icon-[uil--square-full]'
-                    ]}
-                  ></span>
-                  <span class="text-sm text-fg-faint">{msg.content}</span>
-                </div>
-              {:else if msg.role === 'user'}
-                <MessageUser
-                  content={msg.content}
-                  attachments={msg.attachments}
-                  previewUrls={msg._previewUrls}
-                  {wsName}
-                  askUserAnswers={msg.askUserAnswers}
-                />
-              {:else}
-                <MessageAssistant
-                  content={msg.content}
-                  thinking={msg.thinking}
-                  {verbose}
-                  parts={msg.parts}
-                  toolInvocations={msg.toolInvocations}
-                />
-              {/if}
+              <div transition:fade={{ duration: 150 }}>
+                {#if msg.role === 'system'}
+                  <div class="flex items-start gap-3">
+                    <span
+                      class={[
+                        'mt-0.5 shrink-0 text-fg-faint',
+                        msg.content === 'Stopped by user'
+                          ? 'icon-[mdi--stop]'
+                          : 'icon-[uil--square-full]'
+                      ]}
+                    ></span>
+                    <span class="text-sm text-fg-faint">{msg.content}</span>
+                  </div>
+                {:else if msg.role === 'user'}
+                  <MessageUser
+                    content={msg.content}
+                    attachments={msg.attachments}
+                    previewUrls={msg._previewUrls}
+                    {wsName}
+                    askUserAnswers={msg.askUserAnswers}
+                  />
+                {:else}
+                  <MessageAssistant
+                    content={msg.content}
+                    thinking={msg.thinking}
+                    {verbose}
+                    parts={msg.parts}
+                    toolInvocations={msg.toolInvocations}
+                  />
+                {/if}
+              </div>
             {/each}
 
             <!-- Streaming content -->
             {#if streamingParts.length > 0}
-              <StreamingMessage
-                {streamingParts}
-                {verbose}
-                textRevealed={textTypewriter.revealed}
-                thinkingRevealed={thinkingTypewriter.revealed}
-                {lastStreamingTextIndex}
-                onenterplan={approveEnterPlan}
-                onasksubmit={handleAskSubmit}
-                oncustomanswer={handleCustomAnswer}
-                onplanapproval={approvePlan}
-              />
+              <div transition:fade={{ duration: 150 }}>
+                <StreamingMessage
+                  {streamingParts}
+                  {verbose}
+                  onenterplan={approveEnterPlan}
+                  onasksubmit={handleAskSubmit}
+                  oncustomanswer={handleCustomAnswer}
+                  onplanapproval={approvePlan}
+                />
+              </div>
             {/if}
           </div>
         {/if}

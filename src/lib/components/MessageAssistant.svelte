@@ -34,37 +34,97 @@
     }
     return toolInvocations?.map((t) => t.tool) ?? [];
   });
+
+  /**
+   * Group consecutive tool_use parts into summaries for non-verbose rendering.
+   * Returns an array of { type: 'text', text } | { type: 'tool_summary', tools: string[] }.
+   */
+  const groupedParts = $derived.by(() => {
+    if (!parts?.length) return [];
+    const groups: Array<{ type: 'text'; text: string } | { type: 'tool_summary'; tools: string[] }> =
+      [];
+    let pendingTools: string[] = [];
+
+    function flushTools() {
+      if (pendingTools.length > 0) {
+        groups.push({ type: 'tool_summary', tools: [...pendingTools] });
+        pendingTools = [];
+      }
+    }
+
+    for (const part of parts) {
+      if (part.type === 'tool_use') {
+        pendingTools.push(part.tool);
+      } else if (part.type === 'text') {
+        flushTools();
+        groups.push({ type: 'text', text: part.text });
+      }
+    }
+    flushTools();
+    return groups;
+  });
 </script>
 
-{#if thinking && verbose}
-  <div class="flex items-start gap-3">
-    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
-    <div class="min-w-0 flex-1 text-sm text-fg-muted">
-      <Markdown content={thinking} />
+<div class="space-y-3">
+  {#if thinking && verbose}
+    <div class="flex items-start gap-3">
+      <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
+      <div class="min-w-0 flex-1 text-sm text-fg-muted">
+        <Markdown content={thinking} />
+      </div>
     </div>
-  </div>
-{/if}
-{#if parts?.length}
-  {#if verbose}
-    {#each parts as part}
-      {#if part.type === 'text'}
-        <div class="flex items-start gap-3">
-          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-secondary">
-            <Markdown content={part.text} />
+  {/if}
+  {#if parts?.length}
+    {#if verbose}
+      {#each parts as part}
+        {#if part.type === 'text'}
+          <div class="flex items-start gap-3">
+            <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+            <div class="min-w-0 flex-1 text-sm text-fg-secondary">
+              <Markdown content={part.text} />
+            </div>
           </div>
-        </div>
-      {:else if part.type === 'tool_use'}
-        <div class="flex items-start gap-3">
-          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
-            {humanizeToolUse(part.tool, part.input)}
+        {:else if part.type === 'tool_use'}
+          <div class="flex items-start gap-3">
+            <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+            <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
+              {humanizeToolUse(part.tool, part.input)}
+            </div>
           </div>
-        </div>
-      {/if}
-    {/each}
+        {/if}
+      {/each}
+    {:else}
+      {#each groupedParts as group}
+        {#if group.type === 'tool_summary'}
+          <div class="flex items-start gap-3">
+            <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-fg-faint"></span>
+            <div class="min-w-0 flex-1 text-sm text-fg-faint">
+              {summarizeTools(group.tools)}
+            </div>
+          </div>
+        {:else}
+          <div class="flex items-start gap-3">
+            <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+            <div class="min-w-0 flex-1 text-sm text-fg-secondary">
+              <Markdown content={group.text} />
+            </div>
+          </div>
+        {/if}
+      {/each}
+    {/if}
   {:else}
-    {#if allToolNames.length > 0}
+    {#if verbose}
+      {#if toolInvocations?.length}
+        {#each toolInvocations as tool}
+          <div class="flex items-start gap-3">
+            <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+            <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
+              {humanizeToolUse(tool.tool, tool.input)}
+            </div>
+          </div>
+        {/each}
+      {/if}
+    {:else if allToolNames.length > 0}
       <div class="flex items-start gap-3">
         <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-fg-faint"></span>
         <div class="min-w-0 flex-1 text-sm text-fg-faint">
@@ -72,43 +132,13 @@
         </div>
       </div>
     {/if}
-    {#each parts as part}
-      {#if part.type === 'text'}
-        <div class="flex items-start gap-3">
-          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-secondary">
-            <Markdown content={part.text} />
-          </div>
+    {#if content}
+      <div class="flex items-start gap-3">
+        <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+        <div class="min-w-0 flex-1 text-sm text-fg-secondary">
+          <Markdown {content} />
         </div>
-      {/if}
-    {/each}
-  {/if}
-{:else}
-  {#if verbose}
-    {#if toolInvocations?.length}
-      {#each toolInvocations as tool}
-        <div class="flex items-start gap-3">
-          <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
-            {humanizeToolUse(tool.tool, tool.input)}
-          </div>
-        </div>
-      {/each}
+      </div>
     {/if}
-  {:else if allToolNames.length > 0}
-    <div class="flex items-start gap-3">
-      <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-fg-faint"></span>
-      <div class="min-w-0 flex-1 text-sm text-fg-faint">
-        {summarizeTools(allToolNames)}
-      </div>
-    </div>
   {/if}
-  {#if content}
-    <div class="flex items-start gap-3">
-      <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
-      <div class="min-w-0 flex-1 text-sm text-fg-secondary">
-        <Markdown {content} />
-      </div>
-    </div>
-  {/if}
-{/if}
+</div>

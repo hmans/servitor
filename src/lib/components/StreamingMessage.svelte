@@ -9,9 +9,6 @@
   let {
     streamingParts,
     verbose,
-    textRevealed,
-    thinkingRevealed,
-    lastStreamingTextIndex,
     onenterplan,
     onasksubmit,
     oncustomanswer,
@@ -19,9 +16,6 @@
   }: {
     streamingParts: StreamingPart[];
     verbose: boolean;
-    textRevealed: string;
-    thinkingRevealed: string;
-    lastStreamingTextIndex: number;
     onenterplan: (approved: boolean) => void;
     onasksubmit: (
       toolUseId: string,
@@ -123,23 +117,20 @@
 </script>
 
 <div class="space-y-3">
-  {#if thinkingRevealed && verbose}
-    <div class="flex items-start gap-3">
-      <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
-      <div class="min-w-0 flex-1 text-sm text-fg-muted">
-        <Markdown content={thinkingRevealed} />
-      </div>
-    </div>
-  {/if}
   {#each streamingParts as part, i (i)}
-    {#if part.type === 'text'}
-      {@const isLast = i === lastStreamingTextIndex}
-      {@const text = isLast ? textRevealed : part.text}
-      {#if text}
+    {#if part.type === 'thinking' && verbose}
+      <div class="flex items-start gap-3">
+        <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
+        <div class="min-w-0 flex-1 text-sm text-fg-muted">
+          <Markdown content={part.text} />
+        </div>
+      </div>
+    {:else if part.type === 'text'}
+      {#if part.text}
         <div class="flex items-start gap-3">
           <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
           <div class="min-w-0 flex-1 text-sm text-fg-secondary">
-            <Markdown content={text} />
+            <Markdown content={part.text} />
           </div>
         </div>
       {/if}
