@@ -4,8 +4,7 @@
     PerspectiveCamera,
     MeshStandardMaterial,
     IcosahedronGeometry,
-    Color,
-    Quaternion
+    Color
   } from 'three';
   import type { Mesh } from 'three';
   import { EffectComposer, EffectPass, RenderPass, BloomEffect } from 'postprocessing';
@@ -62,32 +61,15 @@
   let colorBlend = 0;
   let elapsed = 0;
 
-  // Slerp-based rotation: pick random target orientations on excitement
-  const currentQuat = new Quaternion();
-  const targetQuat = new Quaternion();
-  let slerpProgress = 1; // start fully arrived
-  let slerpVelocity = 0; // for spring-based inertia
-
-  function randomQuaternion(q: Quaternion) {
-    q.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
-    q.normalize();
-  }
-
   useTask((delta) => {
     if (!mesh) return;
 
     elapsed += delta;
 
-    // Detect new pulse → spike excitement + pick new orientation
+    // Detect new pulse → spike excitement
     if (pulse !== lastPulse) {
       lastPulse = pulse;
       excitement = Math.min(excitement + 0.5, 1.0);
-
-      // Pick a new random target orientation, keep current velocity for inertia
-      currentQuat.copy(mesh.quaternion);
-      randomQuaternion(targetQuat);
-      slerpProgress = 0;
-      // Don't reset slerpVelocity — carry momentum from previous motion
     }
 
     // Decay excitement
@@ -103,25 +85,10 @@
     material.emissive.copy(tempColor);
     material.emissiveIntensity = colorBlend * 0.4 + excitement * 0.8;
 
-    // Rotation: spring-driven slerp with inertia
-    if (slerpProgress < 1) {
-      // Damped spring: accelerate towards target, overshoot slightly, settle
-      const stiffness = 6.0 + excitement * 10.0;
-      const damping = 4.0;
-      const springForce = (1 - slerpProgress) * stiffness;
-      slerpVelocity += (springForce - slerpVelocity * damping) * delta;
-      slerpProgress = Math.min(1, slerpProgress + slerpVelocity * delta);
-
-      mesh.quaternion.slerpQuaternions(currentQuat, targetQuat, slerpProgress);
-    } else {
-      slerpVelocity = 0;
-      // Gentle idle tumble
-      const idleSpeed = 0.15 + (busy ? 0.5 : 0);
-      const nx = Math.sin(elapsed * 1.3) * Math.cos(elapsed * 0.7);
-      const ny = Math.cos(elapsed * 0.9) * Math.sin(elapsed * 1.1);
-      mesh.rotation.x += delta * idleSpeed * nx;
-      mesh.rotation.y += delta * idleSpeed * ny;
-    }
+    // Rotation: continuous spin, faster when busy
+    const spinSpeed = 0.5 + (busy ? 6.0 : 0) + excitement * 4.0;
+    mesh.rotation.y += delta * spinSpeed;
+    mesh.rotation.x = Math.sin(elapsed * 0.8) * 0.3;
 
     // Float: layered noise for organic wandering — more when busy/excited
     const baseAmp = 0.15;

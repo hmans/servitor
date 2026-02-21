@@ -222,7 +222,6 @@
     return -1;
   });
 
-
   // SSE lifecycle
   $effect(() => {
     // Touch wsName so the effect re-runs when navigating between workspaces
@@ -699,7 +698,7 @@
 
   <!-- Messages -->
   <div class="relative flex-1">
-    <div bind:this={messagesEl} class="absolute inset-0 overflow-auto p-4 font-mono">
+    <div bind:this={messagesEl} class="absolute inset-0 overflow-auto px-4 pt-4 pb-0 font-mono">
       <div class="flex min-h-full flex-col justify-end">
         {#if localMessages.length === 0 && !sending}
           <div class="flex h-full items-center justify-center">
@@ -713,7 +712,7 @@
                   content={msg.content}
                   attachments={msg.attachments}
                   previewUrls={msg._previewUrls}
-                  wsName={wsName}
+                  {wsName}
                   askUserAnswers={msg.askUserAnswers}
                 />
               {:else}
@@ -745,8 +744,8 @@
         {/if}
 
         <!-- Activity indicator -->
-        <div class="flex justify-center py-4">
-          <div class="h-10 w-10 overflow-visible">
+        <div class="flex pt-3">
+          <div class="h-5 w-5 overflow-visible">
             <ServitorBit
               pulse={activity.pulseCount}
               busy={activity.busy}
