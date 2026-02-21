@@ -155,13 +155,13 @@ describe('agent manager', () => {
     });
 
     it('emits error for unknown agent type', () => {
-      const events: Array<{ type: string }> = [];
+      const events: Array<{ type: string; message?: string }> = [];
       subscribe('ws-err', (e) => events.push(e));
       sendMessage('ws-err', defaultOpts({ agentType: 'nonexistent' }));
 
       const errorEvent = events.find((e) => e.type === 'error');
       expect(errorEvent).toBeDefined();
-      expect((errorEvent as { message: string }).message).toContain('nonexistent');
+      expect(errorEvent!.message).toContain('nonexistent');
     });
   });
 
@@ -240,7 +240,7 @@ describe('agent manager', () => {
       mock.emit({ type: 'text_delta', text: 'ABC' });
       mock.emit({ type: 'message_complete', text: '', sessionId: 'ses-1' });
 
-      const [, , , , parts] = opts.onComplete.mock.calls[0];
+      const [, , , , parts] = opts.onComplete.mock.calls[0] as [string, string, unknown[], string, Array<{ type: string; text?: string }>];
       // All three deltas should consolidate into one text part
       expect(parts.filter((p) => p.type === 'text')).toHaveLength(1);
       expect(parts[0]).toEqual({ type: 'text', text: 'ABC' });
