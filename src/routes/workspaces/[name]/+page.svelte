@@ -11,12 +11,16 @@
 
   import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
   import type { Attachment, MessagePart } from '$lib/server/conversations';
+  import { formatAnswer, type StreamingPart } from '$lib/types/streaming';
   import { activity } from '$lib/stores/activity.svelte';
 
   let { data } = $props();
 
-  let sending = $state(false);
-  let processAlive = $state(false);
+  // Agent lifecycle: idle → sending → streaming → idle
+  type AgentState = 'idle' | 'sending' | 'streaming';
+  let agentState: AgentState = $state('idle');
+  const active = $derived(agentState !== 'idle');
+
   let errorMessage = $state('');
   let executionMode: ExecutionMode = $state('build');
   let verbose = $state(browser && localStorage.getItem('verbose') === 'true');
@@ -104,27 +108,7 @@
   const thinkingTypewriter = createTypewriter(false);
 
   // Streaming state — built up as SSE events arrive
-  let streamingParts: Array<
-    | { type: 'text'; text: string }
-    | { type: 'thinking'; text: string }
-    | { type: 'tool_use'; tool: string; input: string; toolUseId: string }
-    | { type: 'enter_plan'; toolUseId: string; answered: boolean }
-    | {
-        type: 'ask_user';
-        toolUseId: string;
-        questions: AskUserQuestion[];
-        answered: boolean;
-        submittedAnswers?: Record<string, string>;
-      }
-    | {
-        type: 'exit_plan';
-        toolUseId: string;
-        allowedPrompts?: Array<{ tool: string; prompt: string }>;
-        planContent?: string;
-        planFilePath?: string;
-        answered: boolean;
-      }
-  > = $state([]);
+  let streamingParts: StreamingPart[] = $state([]);
 
   // Local copy of messages for optimistic updates
   let localMessages: Array<{
@@ -228,8 +212,7 @@
     const _ws = wsName;
 
     streamingParts = [];
-    sending = false;
-    processAlive = false;
+    agentState = 'idle';
     activity.setBusy(false);
 
     const es = new EventSource(`/api/workspaces/${_ws}/stream`);
@@ -258,10 +241,10 @@
 
     es.addEventListener('connected', (e) => {
       const event = JSON.parse(e.data);
-      processAlive = !!event.processing;
 
       // If agent is mid-turn, show busy state immediately
       if (event.processing) {
+        agentState = 'streaming';
         activity.setBusy(true);
       }
 
@@ -295,25 +278,29 @@
 
     es.addEventListener('thinking', (e) => {
       const event = JSON.parse(e.data);
-      processAlive = true;
-      sending = false;
+      agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
-      streamingParts = [...streamingParts, { type: 'thinking', text: event.text }];
+      // Consolidate: update last thinking part if exists, otherwise add new
+      const lastPart = streamingParts[streamingParts.length - 1];
+      if (lastPart?.type === 'thinking') {
+        streamingParts[streamingParts.length - 1] = { ...lastPart, text: event.text };
+        streamingParts = streamingParts;
+      } else {
+        streamingParts = [...streamingParts, { type: 'thinking', text: event.text }];
+      }
     });
 
     es.addEventListener('text_delta', (e) => {
       const event = JSON.parse(e.data);
-      processAlive = true;
-      sending = false;
+      agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
       // Consolidate: update last text part if exists, otherwise add new
       const lastPart = streamingParts[streamingParts.length - 1];
       if (lastPart?.type === 'text') {
-        streamingParts = streamingParts.map((p, idx) =>
-          idx === streamingParts.length - 1 ? { ...p, text: event.text } : p
-        );
+        streamingParts[streamingParts.length - 1] = { ...lastPart, text: event.text };
+        streamingParts = streamingParts;
       } else {
         streamingParts = [...streamingParts, { type: 'text', text: event.text }];
       }
@@ -321,8 +308,7 @@
 
     es.addEventListener('tool_use_start', (e) => {
       const event = JSON.parse(e.data);
-      processAlive = true;
-      sending = false;
+      agentState = 'streaming';
       activity.setBusy(true);
       activity.pulse();
       activity.emitToolEmoji(event.tool);
@@ -339,7 +325,7 @@
 
     es.addEventListener('enter_plan', (e) => {
       const event = JSON.parse(e.data);
-      sending = false;
+      agentState = 'idle';
       streamingParts = [
         ...streamingParts,
         { type: 'enter_plan', toolUseId: event.toolUseId, answered: false }
@@ -348,8 +334,8 @@
 
     es.addEventListener('ask_user', (e) => {
       const event = JSON.parse(e.data);
-      // Process will be killed by the server — don't set processAlive
-      sending = false;
+      // Process will be killed by the server
+      agentState = 'idle';
       streamingParts = [
         ...streamingParts,
         {
@@ -363,8 +349,8 @@
 
     es.addEventListener('exit_plan', (e) => {
       const event = JSON.parse(e.data);
-      // Process will be killed by the server — don't set processAlive
-      sending = false;
+      // Process will be killed by the server
+      agentState = 'idle';
       streamingParts = [
         ...streamingParts,
         {
@@ -380,8 +366,7 @@
 
     es.addEventListener('message_complete', async () => {
       turnCompleted = true;
-      sending = false;
-      processAlive = false;
+      agentState = 'idle';
       activity.setBusy(false);
 
       // Instantly finish typewriters so there's no gap
@@ -399,8 +384,7 @@
     });
 
     es.addEventListener('done', async () => {
-      sending = false;
-      processAlive = false;
+      agentState = 'idle';
       activity.setBusy(false);
 
       // Instantly finish typewriters
@@ -442,8 +426,7 @@
       } catch {
         // Native EventSource error
       }
-      sending = false;
-      processAlive = false;
+      agentState = 'idle';
       activity.setBusy(false);
       streamingParts = [];
     });
@@ -465,14 +448,49 @@
     };
   });
 
+  /**
+   * Post a user message to the workspace. Handles optimistic local rendering,
+   * the fetch to the messages endpoint, and error handling.
+   */
+  async function postMessage(
+    content: string,
+    opts?: {
+      /** Extra fields merged into the optimistic local message */
+      localExtra?: Record<string, unknown>;
+      /** Extra fields merged into the POST body */
+      bodyExtra?: Record<string, unknown>;
+    }
+  ) {
+    agentState = 'sending';
+    activity.setBusy(true);
+    errorMessage = '';
+    stuckToBottom = true;
+
+    localMessages = [
+      ...localMessages,
+      { role: 'user', content, ts: new Date().toISOString(), ...opts?.localExtra }
+    ];
+
+    try {
+      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, ...opts?.bodyExtra })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to send' }));
+        errorMessage = err.message ?? 'Failed to send';
+      }
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : 'Network error';
+    }
+  }
+
   async function sendMessage(
     content: string,
     attachments?: Array<{ filename: string; mediaType: string; data: string }>
   ) {
-    sending = true;
-    activity.setBusy(true);
-    errorMessage = '';
-
     const attachmentsMeta = attachments?.map((a) => ({
       id: '',
       filename: a.filename,
@@ -480,47 +498,10 @@
       path: ''
     }));
 
-    // For optimistic rendering we'd need the preview URLs from the Composer,
-    // but the files have already been converted to base64. Just show metadata.
-    stuckToBottom = true;
-    localMessages = [
-      ...localMessages,
-      {
-        role: 'user',
-        content,
-        attachments: attachmentsMeta,
-        ts: new Date().toISOString()
-      }
-    ];
-
-    try {
-      const body: Record<string, unknown> = { content };
-      if (attachments) body.attachments = attachments;
-
-      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to send message' }));
-        errorMessage = err.message ?? 'Failed to send message';
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Network error';
-    }
-  }
-
-  function formatAnswer(questions: AskUserQuestion[], answers: Record<string, string>): string {
-    const parts: string[] = [];
-    for (const q of questions) {
-      const answer = answers[q.question];
-      if (answer) {
-        parts.push(`For "${q.question}", I selected: ${answer}`);
-      }
-    }
-    return parts.join('\n\n');
+    await postMessage(content, {
+      localExtra: attachmentsMeta ? { attachments: attachmentsMeta } : undefined,
+      bodyExtra: attachments ? { attachments } : undefined
+    });
   }
 
   async function handleAskSubmit(
@@ -533,53 +514,15 @@
 
     streamingParts = [];
     const askUserAnswers = { questions, answers };
-
-    sending = true;
-    activity.setBusy(true);
-    stuckToBottom = true;
-    localMessages = [
-      ...localMessages,
-      { role: 'user', content, askUserAnswers, ts: new Date().toISOString() }
-    ];
-
-    try {
-      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, askUserAnswers })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to send answer' }));
-        errorMessage = err.message ?? 'Failed to send answer';
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to send answer';
-    }
+    await postMessage(content, {
+      localExtra: { askUserAnswers },
+      bodyExtra: { askUserAnswers }
+    });
   }
 
   async function handleCustomAnswer(_toolUseId: string, content: string) {
     streamingParts = [];
-
-    sending = true;
-    activity.setBusy(true);
-    stuckToBottom = true;
-    localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
-
-    try {
-      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to send answer' }));
-        errorMessage = err.message ?? 'Failed to send answer';
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to send answer';
-    }
+    await postMessage(content);
   }
 
   async function setMode(mode: ExecutionMode) {
@@ -592,7 +535,7 @@
       if (res.ok) {
         executionMode = mode;
         // If process was running, it was killed — reflect that
-        processAlive = false;
+        agentState = 'idle';
       }
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Failed to change mode';
@@ -601,64 +544,20 @@
 
   async function approveEnterPlan(approved: boolean) {
     streamingParts = [];
-    sending = true;
-    activity.setBusy(true);
-
-    if (approved) {
-      await setMode('plan');
-    }
-
-    const content = approved ? 'Yes, please plan first.' : 'No, just proceed with implementation.';
-
-    stuckToBottom = true;
-    localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
-
-    try {
-      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to send' }));
-        errorMessage = err.message ?? 'Failed to send';
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to send';
-    }
+    if (approved) await setMode('plan');
+    await postMessage(
+      approved ? 'Yes, please plan first.' : 'No, just proceed with implementation.'
+    );
   }
 
   async function approvePlan(approved: boolean) {
     streamingParts = [];
-    sending = true;
-    activity.setBusy(true);
-
-    // Switch from plan → build on approval
-    if (approved && executionMode === 'plan') {
-      await setMode('build');
-    }
-
-    const content = approved
-      ? 'Plan approved. Proceed with the implementation.'
-      : 'Plan rejected. Please revise the plan.';
-
-    stuckToBottom = true;
-    localMessages = [...localMessages, { role: 'user', content, ts: new Date().toISOString() }];
-
-    try {
-      const res = await fetch(`/api/workspaces/${wsName}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to send' }));
-        errorMessage = err.message ?? 'Failed to send';
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to send';
-    }
+    if (approved && executionMode === 'plan') await setMode('build');
+    await postMessage(
+      approved
+        ? 'Plan approved. Proceed with the implementation.'
+        : 'Plan rejected. Please revise the plan.'
+    );
   }
 
   async function stopProcess() {
@@ -667,8 +566,7 @@
     } catch {
       // Process may already be dead
     }
-    processAlive = false;
-    sending = false;
+    agentState = 'idle';
     streamingParts = [];
     activity.setBusy(false);
 
@@ -696,7 +594,7 @@
   <!-- Header -->
   <WorkspaceHeader
     label={data.workspace.label}
-    active={processAlive || sending}
+    {active}
     {executionMode}
     bind:verbose
     isMainWorkspace={data.workspace.isMainWorkspace}
@@ -707,7 +605,7 @@
   <div class="relative flex-1">
     <div bind:this={messagesEl} class="absolute inset-0 overflow-auto px-4 pt-4 pb-0 font-mono">
       <div class="flex min-h-full flex-col justify-end">
-        {#if localMessages.length === 0 && !sending}
+        {#if localMessages.length === 0 && !active}
           <div class="flex h-full items-center justify-center">
             <p class="empty-state">Type a message to begin.</p>
           </div>
@@ -796,7 +694,7 @@
   <!-- Input -->
   <Composer
     {executionMode}
-    active={processAlive || sending}
+    {active}
     onsend={sendMessage}
     onstop={stopProcess}
     bind:composerEl

@@ -2,29 +2,9 @@
   import Markdown from '$lib/components/Markdown.svelte';
   import OptionButton from '$lib/components/OptionButton.svelte';
   import { toolIcon, humanizeToolUse } from '$lib/utils/tool-display';
+  import { formatAnswer, type StreamingPart } from '$lib/types/streaming';
 
   import type { AskUserQuestion } from '$lib/server/agents/types';
-
-  type StreamingPart =
-    | { type: 'text'; text: string }
-    | { type: 'thinking'; text: string }
-    | { type: 'tool_use'; tool: string; input: string; toolUseId: string }
-    | { type: 'enter_plan'; toolUseId: string; answered: boolean }
-    | {
-        type: 'ask_user';
-        toolUseId: string;
-        questions: AskUserQuestion[];
-        answered: boolean;
-        submittedAnswers?: Record<string, string>;
-      }
-    | {
-        type: 'exit_plan';
-        toolUseId: string;
-        allowedPrompts?: Array<{ tool: string; prompt: string }>;
-        planContent?: string;
-        planFilePath?: string;
-        answered: boolean;
-      };
 
   let {
     streamingParts,
@@ -108,17 +88,6 @@
 
   function needsSubmitButton(questions: AskUserQuestion[]): boolean {
     return questions.length > 1 || questions.some((q) => q.multiSelect);
-  }
-
-  function formatAnswer(questions: AskUserQuestion[], answers: Record<string, string>): string {
-    const parts: string[] = [];
-    for (const q of questions) {
-      const answer = answers[q.question];
-      if (answer) {
-        parts.push(`For "${q.question}", I selected: ${answer}`);
-      }
-    }
-    return parts.join('\n\n');
   }
 
   function submitAnswers(toolUseId: string, questions: AskUserQuestion[]) {
