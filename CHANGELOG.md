@@ -1,5 +1,24 @@
 # @hmans/servitor
 
+## 0.5.0
+
+### Minor Changes
+
+- f521c68: Add light mode with theme toggle in sidebar
+- 3996913: Remove typewriter effect, add message fade transitions, fix tool ordering in non-verbose mode
+- 8308950: Replace 1-second polling with fs.watch-based SSE events for worktree status updates
+- 989e4ab: Add persisted "Stopped by user" system message when killing agent, fix stop button visibility during send, and reduce composer top padding
+
+### Patch Changes
+
+- d203d6d: Add svelte-check to CI, fix pre-existing type errors
+- 4833ce8: Fix text overflow in tool invocation displays by adding truncation
+- 1baecdb: Eliminate flash when agent turn completes by promoting streaming content to local message synchronously
+- b09bbd5: Persist partial assistant message when user stops the agent mid-turn, use filled stop icon for "Stopped by user" message
+- 85ea27a: Use push/mutation on $state arrays instead of replacing them on every SSE event
+- 41e6c24: Refactor message handling: extract shared types, deduplicate fetch logic, consolidate streaming events, simplify agent state machine
+- 870fdae: Replace SSE addEventListener monkey-patch with typed listenSSE helper, use timestamp keys for message list, clear turn state on process exit
+
 ## 0.4.0
 
 ### Minor Changes
