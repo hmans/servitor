@@ -744,17 +744,13 @@
         {/if}
 
         <!-- Activity indicator -->
-        <div class="flex pt-3">
-          <div class="h-5 w-5 overflow-visible">
-            <ServitorBit
-              pulse={activity.pulseCount}
-              busy={activity.busy}
-              toolEmojiId={activity.toolEmojiId}
-              toolEmoji={activity.toolEmoji}
-              onclick={() => composerEl?.focus()}
-            />
-          </div>
-        </div>
+        <ServitorBit
+          pulse={activity.pulseCount}
+          busy={activity.busy}
+          toolEmojiId={activity.toolEmojiId}
+          toolEmoji={activity.toolEmoji}
+          onclick={() => composerEl?.focus()}
+        />
       </div>
     </div>
 

@@ -17,7 +17,7 @@
   autoRender.set(false);
 
   const cam = new PerspectiveCamera(50, 1, 0.1, 100);
-  cam.position.set(0, 0, 9.0);
+  cam.position.set(0, 0, 3.0);
   camera.set(cam);
 
   // Post-processing: bloom

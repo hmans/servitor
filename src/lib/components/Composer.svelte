@@ -158,7 +158,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class={[
-    'p-4',
+    'px-4 pt-2 pb-4',
     executionMode === 'plan' ? 'border-t border-amber-500/30' : 'border-t border-edge',
     dragOver && 'rounded ring-1 ring-pink-500/50'
   ]}
