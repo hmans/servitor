@@ -19,6 +19,8 @@
 - **Testing:** Vitest (unit), Playwright (E2E); run `mise test` or `pnpm vitest run --project server`
 - **Changesets:** Use `pnpm changeset` to create changesets when committing changes. Always include a changeset with your commits.
 
+> **IMPORTANT:** Every commit **must** include a changeset. Run `pnpm changeset` before committing and select the appropriate bump type (patch/minor/major).
+
 ## Configuration
 
 - Config is loaded at startup from CWD (`git rev-parse --show-toplevel`) and optional `.servitor.yml` in repo root

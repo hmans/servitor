@@ -1,10 +1,22 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import InfoPane from '$lib/components/InfoPane.svelte';
   import PaneResizer from '$lib/components/PaneResizer.svelte';
 
   let { data, children } = $props();
 
   let infoPaneWidth = $state(400);
+
+  $effect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        invalidateAll();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  });
 </script>
 
 <svelte:head><title>{data.workspace.label} - Servitor</title></svelte:head>
