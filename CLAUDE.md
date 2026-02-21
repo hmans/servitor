@@ -17,9 +17,15 @@
 - **Markdown:** `marked` library with custom renderer (links open in new tabs)
 - **Package manager:** pnpm (always use `pnpm`, never `npm` or `npx`)
 - **Testing:** Vitest (unit), Playwright (E2E); run `mise test` or `pnpm vitest run --project server`
-- **Changesets:** Use `pnpm changeset` to create changesets when committing changes. Always include a changeset with your commits.
+- **Changesets:** Every commit **must** include a changeset. Since `pnpm changeset` is interactive and won't work in non-TTY environments, create the changeset file directly in `.changeset/` with a kebab-case name and the following format:
+  ```md
+  ---
+  '@hmans/servitor': patch
+  ---
 
-> **IMPORTANT:** Every commit **must** include a changeset. Run `pnpm changeset` before committing and select the appropriate bump type (patch/minor/major).
+  Short description of the change
+  ```
+  Use `patch` for fixes, `minor` for features, `major` for breaking changes.
 
 ## Configuration
 
