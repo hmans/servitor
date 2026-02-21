@@ -8,14 +8,13 @@
   let infoPaneWidth = $state(400);
 
   $effect(() => {
-    const onVisibilityChange = () => {
+    const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         invalidateAll();
       }
-    };
+    }, 1000);
 
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    return () => clearInterval(interval);
   });
 </script>
 
