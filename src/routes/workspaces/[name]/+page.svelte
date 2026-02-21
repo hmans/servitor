@@ -259,15 +259,34 @@
       });
     });
 
-    listenSSE('message_complete', async () => {
+    listenSSE<{ text: string }>('message_complete', async (event) => {
       turnCompleted = true;
       agentState = 'idle';
       activity.setBusy(false);
 
-      // Load persisted messages first, THEN clear streaming parts.
-      // This prevents a flash where neither streaming nor persisted text is visible.
-      await invalidateAll();
+      // Promote streaming content to a persisted message synchronously.
+      // This avoids the flash caused by async invalidateAll() replacing the view.
+      let thinking = '';
+      const toolInvocations: Array<{ tool: string; toolUseId: string; input: string }> = [];
+      const parts: MessagePart[] = [];
+      for (const p of streamingParts) {
+        if (p.type === 'thinking') thinking = p.text;
+        else if (p.type === 'text') parts.push({ type: 'text', text: p.text });
+        else if (p.type === 'tool_use') {
+          toolInvocations.push({ tool: p.tool, toolUseId: p.toolUseId, input: p.input });
+          parts.push({ type: 'tool_use', tool: p.tool, toolUseId: p.toolUseId, input: p.input });
+        }
+      }
+
       streamingParts = [];
+      localMessages.push({
+        role: 'assistant',
+        content: event.text,
+        thinking: thinking || undefined,
+        toolInvocations: toolInvocations.length > 0 ? toolInvocations : undefined,
+        parts: parts.length > 0 ? parts : undefined,
+        ts: new Date().toISOString()
+      });
 
       stuckToBottom = true;
       await tick();
