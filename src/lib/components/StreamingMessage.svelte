@@ -178,14 +178,14 @@
       {#if verbose}
         <div class="flex items-start gap-3">
           <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-muted">
+          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
           </div>
         </div>
       {:else if lastToolUse && i === lastToolUse.index}
         <div class="flex items-start gap-3">
           <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-muted">
+          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
             {#if priorToolCount > 0}
               <span class="ml-2 text-fg-dim">+{priorToolCount} more</span>
@@ -334,7 +334,7 @@
           <div class="section-label flex items-center gap-3 text-amber-600">
             <span>Plan Approval</span>
             {#if part.planFilePath}
-              <span class="tracking-normal text-fg-faint normal-case"
+              <span class="truncate tracking-normal text-fg-faint normal-case"
                 >{part.planFilePath}</span
               >
             {/if}

@@ -57,7 +57,7 @@
       {:else if part.type === 'tool_use'}
         <div class="flex items-start gap-3">
           <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-muted">
+          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
           </div>
         </div>
@@ -89,7 +89,7 @@
       {#each toolInvocations as tool}
         <div class="flex items-start gap-3">
           <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
-          <div class="min-w-0 flex-1 text-sm text-fg-muted">
+          <div class="min-w-0 flex-1 truncate text-sm text-fg-muted">
             {humanizeToolUse(tool.tool, tool.input)}
           </div>
         </div>
