@@ -11,8 +11,8 @@
 <a
   href="/workspaces/{name}"
   class={[
-    'flex flex-row items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium shadow-md transition-colors hover:bg-zinc-800',
-    active ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
+    'flex flex-row items-center gap-2 rounded-md border border-edge-muted px-3 py-2 text-sm font-medium shadow-md transition-colors hover:bg-surface-raised',
+    active ? 'text-fg' : 'text-fg-muted hover:text-fg-secondary'
   ]}
 >
   <StatusDot active={workspaceStatus.isBusy(name)} pulse />

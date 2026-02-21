@@ -1,5 +1,6 @@
 <script lang="ts">
   import WorkspaceCard from '$lib/components/WorkspaceCard.svelte';
+  import { theme } from '$lib/stores/theme.svelte';
 
   type Workspace = {
     name: string;
@@ -11,10 +12,21 @@
   let { workspaces, projectName }: { workspaces: Workspace[]; projectName: string } = $props();
 </script>
 
-<aside class="flex h-full w-full flex-col bg-zinc-900">
+<aside class="flex h-full w-full flex-col bg-surface-alt">
   <!-- Project Name -->
-  <div class="border-b border-zinc-800 p-4">
-    <a href="/" class="text-lg font-bold tracking-tight hover:text-white">{projectName}</a>
+  <div class="flex items-center justify-between border-b border-edge p-4">
+    <a href="/" class="text-lg font-bold tracking-tight hover:text-fg">{projectName}</a>
+    <button
+      onclick={() => theme.toggle()}
+      class="text-fg-faint transition-colors hover:text-fg"
+      title="Toggle theme"
+    >
+      <span
+        class={[
+          theme.current === 'dark' ? 'icon-[uil--sun]' : 'icon-[uil--moon]'
+        ]}
+      ></span>
+    </button>
   </div>
 
   <!-- Workspace List -->
@@ -27,7 +39,7 @@
   </nav>
 
   <!-- New Workspace Button -->
-  <div class="border-t border-zinc-800 p-3">
+  <div class="border-t border-edge p-3">
     <a href="/workspaces/new" class="btn">
       <span class="mr-2 icon-[uil--plus]"></span>
       New Workspace

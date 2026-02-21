@@ -5,19 +5,104 @@
   scale: 1.2;
 }
 
-@theme {
-  --font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
+/* ── Theme tokens ──────────────────────────────────────────────────── */
+
+:root {
+  /* Surfaces */
+  --c-surface: #09090b;       /* zinc-950 */
+  --c-surface-alt: #18181b;   /* zinc-900 */
+  --c-surface-raised: #27272a; /* zinc-800 */
+  --c-surface-hover: #3f3f46; /* zinc-700 */
+  --c-surface-inset: #09090b; /* zinc-950 */
+
+  /* Foreground */
+  --c-fg: #f4f4f5;            /* zinc-100 */
+  --c-fg-secondary: #d4d4d8;  /* zinc-300 */
+  --c-fg-muted: #71717a;      /* zinc-500 */
+  --c-fg-faint: #52525b;      /* zinc-600 */
+  --c-fg-dim: #3f3f46;        /* zinc-700 */
+
+  /* Borders */
+  --c-edge: #27272a;          /* zinc-800 */
+  --c-edge-muted: #3f3f46;    /* zinc-700 */
+  --c-edge-strong: #52525b;   /* zinc-600 */
+
+  /* Inverse (for inverted buttons) */
+  --c-surface-inverse: #f4f4f5; /* zinc-100 */
+  --c-fg-inverse: #18181b;      /* zinc-900 */
+
+  /* Error surfaces */
+  --c-error-surface: rgb(127 29 29 / 0.5); /* red-900/50 */
+  --c-error-border: rgb(127 29 29 / 0.5);  /* red-900/50 */
 }
 
+html.light {
+  /* Surfaces */
+  --c-surface: #ffffff;
+  --c-surface-alt: #fafafa;       /* zinc-50 */
+  --c-surface-raised: #f4f4f5;    /* zinc-100 */
+  --c-surface-hover: #e4e4e7;     /* zinc-200 */
+  --c-surface-inset: #f4f4f5;     /* zinc-100 */
+
+  /* Foreground */
+  --c-fg: #18181b;                /* zinc-900 */
+  --c-fg-secondary: #52525b;      /* zinc-600 */
+  --c-fg-muted: #71717a;          /* zinc-500 */
+  --c-fg-faint: #a1a1aa;          /* zinc-400 */
+  --c-fg-dim: #d4d4d8;            /* zinc-300 */
+
+  /* Borders */
+  --c-edge: #e4e4e7;              /* zinc-200 */
+  --c-edge-muted: #d4d4d8;        /* zinc-300 */
+  --c-edge-strong: #a1a1aa;       /* zinc-400 */
+
+  /* Inverse */
+  --c-surface-inverse: #18181b;   /* zinc-900 */
+  --c-fg-inverse: #f4f4f5;        /* zinc-100 */
+
+  /* Error surfaces */
+  --c-error-surface: #fef2f2;     /* red-50 */
+  --c-error-border: #fecaca;      /* red-200 */
+}
+
+@theme {
+  --font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
+
+  --color-surface: var(--c-surface);
+  --color-surface-alt: var(--c-surface-alt);
+  --color-surface-raised: var(--c-surface-raised);
+  --color-surface-hover: var(--c-surface-hover);
+  --color-surface-inset: var(--c-surface-inset);
+
+  --color-fg: var(--c-fg);
+  --color-fg-secondary: var(--c-fg-secondary);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-fg-faint: var(--c-fg-faint);
+  --color-fg-dim: var(--c-fg-dim);
+
+  --color-edge: var(--c-edge);
+  --color-edge-muted: var(--c-edge-muted);
+  --color-edge-strong: var(--c-edge-strong);
+
+  --color-surface-inverse: var(--c-surface-inverse);
+  --color-fg-inverse: var(--c-fg-inverse);
+
+  --color-error-surface: var(--c-error-surface);
+  --color-error-border: var(--c-error-border);
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+
 @utility btn {
-  @apply flex w-full cursor-pointer items-center justify-center rounded-md bg-zinc-800 px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100;
+  @apply flex w-full cursor-pointer items-center justify-center rounded-md bg-surface-raised px-3 py-2 text-sm text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg;
 }
 
 @utility tab-btn {
   @apply btn px-3 py-1 text-xs;
 }
 
-/* Markdown rendering in chat messages */
+/* ── Markdown rendering in chat messages ───────────────────────────── */
+
 .markdown h1,
 .markdown h2,
 .markdown h3,
@@ -74,7 +159,7 @@
 .markdown code {
   font-family: var(--font-mono);
   font-size: 0.875em;
-  background: rgb(82 82 91 / 0.5);
+  background: var(--c-surface-raised);
   padding: 0.2em 0.45em;
   border-radius: 0.375rem;
 }
@@ -83,7 +168,7 @@
   margin-top: 0.75em;
   margin-bottom: 0.75em;
   padding: 0.75em 1em;
-  background: rgb(24 24 27 / 0.8);
+  background: var(--c-surface-inset);
   border-radius: 0.375rem;
   overflow-x: auto;
 }
@@ -95,11 +180,11 @@
 }
 
 .markdown blockquote {
-  border-left: 3px solid rgb(113 113 122);
+  border-left: 3px solid var(--c-edge-muted);
   padding-left: 0.75em;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
-  color: rgb(161 161 170);
+  color: var(--c-fg-muted);
 }
 
 .markdown a {
@@ -108,11 +193,11 @@
 }
 
 .markdown a:hover {
-  color: white;
+  color: var(--c-fg);
 }
 
 .markdown hr {
-  border-color: rgb(63 63 70);
+  border-color: var(--c-edge-muted);
   margin-top: 1em;
   margin-bottom: 1em;
 }
@@ -127,12 +212,12 @@
 
 .markdown th,
 .markdown td {
-  border: 1px solid rgb(63 63 70);
+  border: 1px solid var(--c-edge-muted);
   padding: 0.375em 0.75em;
   text-align: left;
 }
 
 .markdown th {
   font-weight: 600;
-  background: rgb(39 39 42 / 0.5);
+  background: var(--c-surface-alt);
 }

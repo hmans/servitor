@@ -24,13 +24,13 @@
 <div
   class={[
     'flex items-center justify-between p-4',
-    executionMode === 'plan' ? 'border-b border-amber-500/30' : 'border-b border-zinc-800'
+    executionMode === 'plan' ? 'border-b border-amber-500/30' : 'border-b border-edge'
   ]}
 >
   <!-- Title and Status -->
   <div class="flex items-center gap-2 text-sm">
     <StatusDot {active} size="md" />
-    <span class="text-zinc-200">{label}</span>
+    <span class="text-fg-secondary">{label}</span>
   </div>
 
   <!-- Buttons -->
@@ -57,7 +57,7 @@
         verbose = !verbose;
         localStorage.setItem('verbose', String(verbose));
       }}
-      class={['tab-btn', verbose ? 'text-zinc-300' : 'text-zinc-600 hover:text-zinc-400']}
+      class={['tab-btn', verbose ? 'text-fg-secondary' : 'text-fg-faint hover:text-fg-muted']}
     >
       verbose
     </button>

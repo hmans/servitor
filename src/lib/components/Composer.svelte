@@ -146,7 +146,7 @@
 </script>
 
 {#if errorMessage}
-  <div class="border-t border-red-900/50 px-3 py-2 text-xs text-red-400">
+  <div class="border-t border-error-border px-3 py-2 text-xs text-red-400">
     <span class="text-red-600">[error]</span>
     {errorMessage}
     <button onclick={() => (errorMessage = '')} class="ml-2 text-red-600 hover:text-red-400"
@@ -159,7 +159,7 @@
 <div
   class={[
     'p-4',
-    executionMode === 'plan' ? 'border-t border-amber-500/30' : 'border-t border-zinc-800',
+    executionMode === 'plan' ? 'border-t border-amber-500/30' : 'border-t border-edge',
     dragOver && 'rounded ring-1 ring-pink-500/50'
   ]}
   ondrop={handleDrop}
@@ -169,7 +169,7 @@
   {#if pendingAttachments.length > 0}
     <div class="mb-2 flex gap-2">
       {#each pendingAttachments as att, i}
-        <div class="group relative h-16 w-16 overflow-hidden rounded border border-zinc-700">
+        <div class="group relative h-16 w-16 overflow-hidden rounded border border-edge-muted">
           <img src={att.preview} alt={att.filename} class="h-full w-full object-cover" />
           <button
             onclick={() => removeAttachment(i)}
@@ -201,11 +201,11 @@
       }}
       placeholder="Ask Servitor anything..."
       rows="1"
-      class="flex-1 resize-none bg-transparent py-1.5 font-mono text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
+      class="flex-1 resize-none bg-transparent py-1.5 font-mono text-sm text-pink-400 placeholder-fg-dim focus:outline-none"
     ></textarea>
     <button
       onclick={() => fileInputEl?.click()}
-      class="cursor-pointer text-zinc-600 transition-colors hover:text-zinc-300"
+      class="cursor-pointer text-fg-faint transition-colors hover:text-fg-secondary"
       title="Attach image"
     >
       <span class="icon-[uil--image-plus]"></span>
@@ -222,7 +222,7 @@
       <button
         onclick={send}
         disabled={!input.trim() && pendingAttachments.length === 0}
-        class="cursor-pointer text-zinc-600 transition-colors hover:text-pink-400 disabled:cursor-not-allowed disabled:opacity-30"
+        class="cursor-pointer text-fg-faint transition-colors hover:text-pink-400 disabled:cursor-not-allowed disabled:opacity-30"
         title="Send message"
       >
         <span class="icon-[uil--message]"></span>

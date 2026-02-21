@@ -156,8 +156,8 @@
 <div class="space-y-3">
   {#if thinkingRevealed && verbose}
     <div class="flex items-start gap-3">
-      <span class="icon-[uil--brain] mt-0.5 shrink-0 text-zinc-600"></span>
-      <div class="min-w-0 flex-1 text-sm text-zinc-500">
+      <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
+      <div class="min-w-0 flex-1 text-sm text-fg-muted">
         <Markdown content={thinkingRevealed} />
       </div>
     </div>
@@ -168,8 +168,8 @@
       {@const text = isLast ? textRevealed : part.text}
       {#if text}
         <div class="flex items-start gap-3">
-          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-300">
+          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-secondary">
             <Markdown content={text} />
           </div>
         </div>
@@ -177,18 +177,18 @@
     {:else if part.type === 'tool_use'}
       {#if verbose}
         <div class="flex items-start gap-3">
-          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
           </div>
         </div>
       {:else if lastToolUse && i === lastToolUse.index}
         <div class="flex items-start gap-3">
-          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
             {#if priorToolCount > 0}
-              <span class="ml-2 text-zinc-700">+{priorToolCount} more</span>
+              <span class="ml-2 text-fg-dim">+{priorToolCount} more</span>
             {/if}
           </div>
         </div>
@@ -198,7 +198,7 @@
         <span class="icon-[uil--map] mt-1 shrink-0 text-amber-600"></span>
         <div class="card my-3 flex-1 border-amber-700/50 bg-amber-500/5 p-4">
           <div class="section-label text-amber-600">Enter Plan Mode</div>
-          <div class="mb-3 text-sm text-zinc-300">
+          <div class="mb-3 text-sm text-fg-secondary">
             The agent wants to plan before implementing. Switch to plan mode?
           </div>
           {#if !part.answered}
@@ -211,7 +211,7 @@
               </button>
               <button
                 onclick={() => onenterplan(false)}
-                class="rounded border border-zinc-600 px-4 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-500/20"
+                class="rounded border border-edge-strong px-4 py-1.5 text-sm text-fg-muted transition-colors hover:bg-fg-muted/20"
               >
                 [just build]
               </button>
@@ -228,7 +228,7 @@
               <div class="section-label">
                 {q.header}
               </div>
-              <div class="mb-3 text-sm text-zinc-200">{q.question}</div>
+              <div class="mb-3 text-sm text-fg-secondary">{q.question}</div>
               {#if part.answered}
                 <!-- Readonly options -->
                 <div class="flex flex-wrap gap-2">
@@ -257,13 +257,13 @@
                         />
                       {/each}
                     </div>
-                    <div class="flex-1 overflow-auto rounded border border-zinc-700 bg-zinc-900/50 p-3">
+                    <div class="flex-1 overflow-auto rounded border border-edge-muted bg-surface-alt/50 p-3">
                       {#if q.options.find((o) => o.label === previewOption[part.toolUseId]?.[q.question])?.markdown}
-                        <pre class="font-mono text-xs whitespace-pre-wrap text-zinc-400">{q.options.find(
+                        <pre class="font-mono text-xs whitespace-pre-wrap text-fg-muted">{q.options.find(
                             (o) => o.label === previewOption[part.toolUseId]?.[q.question]
                           )?.markdown}</pre>
                       {:else}
-                        <span class="text-xs text-zinc-600">Hover an option to preview</span>
+                        <span class="text-xs text-fg-faint">Hover an option to preview</span>
                       {/if}
                     </div>
                   </div>
@@ -286,7 +286,7 @@
             {@const answeredCount = Object.keys(
               pendingAnswers[part.toolUseId] ?? {}
             ).filter((k) => pendingAnswers[part.toolUseId][k]).length}
-            <div class="mt-4 flex items-center gap-3 border-t border-zinc-700/50 pt-3">
+            <div class="mt-4 flex items-center gap-3 border-t border-edge-muted/50 pt-3">
               <button
                 onclick={() => submitAnswers(part.toolUseId, part.questions)}
                 disabled={answeredCount === 0}
@@ -294,7 +294,7 @@
               >
                 [submit {answeredCount}/{part.questions.length}]
               </button>
-              <span class="text-xs text-zinc-600">
+              <span class="text-xs text-fg-faint">
                 {answeredCount === part.questions.length
                   ? 'All answered'
                   : `${part.questions.length - answeredCount} unanswered`}
@@ -302,8 +302,8 @@
             </div>
           {/if}
           {#if !part.answered}
-            <div class="mt-3 flex items-end gap-2 border-t border-zinc-700/50 pt-3">
-              <span class="pb-1.5 text-xs text-zinc-600">or</span>
+            <div class="mt-3 flex items-end gap-2 border-t border-edge-muted/50 pt-3">
+              <span class="pb-1.5 text-xs text-fg-faint">or</span>
               <input
                 type="text"
                 bind:value={customAnswer[part.toolUseId]}
@@ -314,7 +314,7 @@
                   }
                 }}
                 placeholder="Type a custom answer..."
-                class="flex-1 bg-transparent py-1 text-sm text-pink-400 placeholder-zinc-700 focus:outline-none"
+                class="flex-1 bg-transparent py-1 text-sm text-pink-400 placeholder-fg-dim focus:outline-none"
               />
               <button
                 onclick={() => submitCustomAnswer(part.toolUseId)}
@@ -334,7 +334,7 @@
           <div class="section-label flex items-center gap-3 text-amber-600">
             <span>Plan Approval</span>
             {#if part.planFilePath}
-              <span class="tracking-normal text-zinc-600 normal-case"
+              <span class="tracking-normal text-fg-faint normal-case"
                 >{part.planFilePath}</span
               >
             {/if}
@@ -342,19 +342,19 @@
           {#if part.planContent}
             <details open={!part.answered}>
               <summary
-                class="mb-2 cursor-pointer text-xs text-zinc-500 hover:text-zinc-400"
+                class="mb-2 cursor-pointer text-xs text-fg-muted hover:text-fg-secondary"
               >
                 {part.answered ? 'Show plan' : 'Plan details'}
               </summary>
               <div
-                class="mb-4 max-h-[60vh] overflow-auto rounded border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300"
+                class="mb-4 max-h-[60vh] overflow-auto rounded border border-edge bg-surface-alt/50 p-4 text-sm text-fg-secondary"
               >
                 <Markdown content={part.planContent} />
               </div>
             </details>
           {/if}
           {#if part.allowedPrompts?.length}
-            <div class="mb-3 text-xs text-zinc-500">
+            <div class="mb-3 text-xs text-fg-muted">
               Requested permissions: {part.allowedPrompts
                 .map((p) => `${p.tool}: ${p.prompt}`)
                 .join(', ')}

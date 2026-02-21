@@ -29,7 +29,7 @@
 
   <!-- Info pane -->
   <div
-    class="hidden shrink-0 overflow-auto bg-zinc-900 px-4 lg:block"
+    class="hidden shrink-0 overflow-auto bg-surface-alt px-4 lg:block"
     style:width="{infoPaneWidth}px"
   >
     <InfoPane

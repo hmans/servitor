@@ -17,13 +17,13 @@
       <!-- File header -->
       <button
         onclick={() => toggle(i)}
-        class="flex w-full items-center gap-2 bg-zinc-800/50 px-3 py-2 text-left font-mono text-xs hover:bg-zinc-800"
+        class="flex w-full items-center gap-2 bg-surface-raised/50 px-3 py-2 text-left font-mono text-xs hover:bg-surface-raised"
       >
         <span
           class={['inline-block transition-transform', !collapsed[i] && 'rotate-90']}
           aria-hidden="true">&#9654;</span
         >
-        <span class="flex-1 truncate text-zinc-200">{file.displayPath}</span>
+        <span class="flex-1 truncate text-fg-secondary">{file.displayPath}</span>
         {#if file.additions > 0}
           <span class="text-green-400">+{file.additions}</span>
         {/if}
@@ -34,11 +34,11 @@
 
       <!-- Hunks -->
       {#if !collapsed[i]}
-        <div class="overflow-x-auto bg-zinc-900">
+        <div class="overflow-x-auto bg-surface-alt">
           {#each file.hunks as hunk}
             <!-- Hunk header -->
             <div
-              class="border-t border-zinc-800 bg-zinc-800/30 px-3 py-1 font-mono text-xs text-cyan-400"
+              class="border-t border-edge bg-surface-raised/30 px-3 py-1 font-mono text-xs text-cyan-400"
             >
               {hunk.header}
             </div>
@@ -54,12 +54,12 @@
                     ]}
                   >
                     <td
-                      class="w-[1px] border-r border-zinc-800 px-2 py-0 text-right whitespace-nowrap text-zinc-600 select-none"
+                      class="w-[1px] border-r border-edge px-2 py-0 text-right whitespace-nowrap text-fg-faint select-none"
                     >
                       {line.oldLineNo ?? ''}
                     </td>
                     <td
-                      class="w-[1px] border-r border-zinc-800 px-2 py-0 text-right whitespace-nowrap text-zinc-600 select-none"
+                      class="w-[1px] border-r border-edge px-2 py-0 text-right whitespace-nowrap text-fg-faint select-none"
                     >
                       {line.newLineNo ?? ''}
                     </td>
@@ -70,7 +70,7 @@
                           ? 'text-green-300'
                           : line.type === 'deletion'
                             ? 'text-red-300'
-                            : 'text-zinc-300'
+                            : 'text-fg-secondary'
                       ]}
                     >
                       {line.content}

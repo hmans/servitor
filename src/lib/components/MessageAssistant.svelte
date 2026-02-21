@@ -38,8 +38,8 @@
 
 {#if thinking && verbose}
   <div class="flex items-start gap-3">
-    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-zinc-600"></span>
-    <div class="min-w-0 flex-1 text-sm text-zinc-500">
+    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-fg-faint"></span>
+    <div class="min-w-0 flex-1 text-sm text-fg-muted">
       <Markdown content={thinking} />
     </div>
   </div>
@@ -49,15 +49,15 @@
     {#each parts as part}
       {#if part.type === 'text'}
         <div class="flex items-start gap-3">
-          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-300">
+          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-secondary">
             <Markdown content={part.text} />
           </div>
         </div>
       {:else if part.type === 'tool_use'}
         <div class="flex items-start gap-3">
-          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-muted">
             {humanizeToolUse(part.tool, part.input)}
           </div>
         </div>
@@ -66,8 +66,8 @@
   {:else}
     {#if allToolNames.length > 0}
       <div class="flex items-start gap-3">
-        <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-zinc-600"></span>
-        <div class="min-w-0 flex-1 text-sm text-zinc-600">
+        <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-fg-faint"></span>
+        <div class="min-w-0 flex-1 text-sm text-fg-faint">
           {summarizeTools(allToolNames)}
         </div>
       </div>
@@ -75,8 +75,8 @@
     {#each parts as part}
       {#if part.type === 'text'}
         <div class="flex items-start gap-3">
-          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-300">
+          <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-secondary">
             <Markdown content={part.text} />
           </div>
         </div>
@@ -88,8 +88,8 @@
     {#if toolInvocations?.length}
       {#each toolInvocations as tool}
         <div class="flex items-start gap-3">
-          <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
-          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+          <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-fg-faint']}></span>
+          <div class="min-w-0 flex-1 text-sm text-fg-muted">
             {humanizeToolUse(tool.tool, tool.input)}
           </div>
         </div>
@@ -97,16 +97,16 @@
     {/if}
   {:else if allToolNames.length > 0}
     <div class="flex items-start gap-3">
-      <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-zinc-600"></span>
-      <div class="min-w-0 flex-1 text-sm text-zinc-600">
+      <span class="icon-[uil--wrench] mt-0.5 shrink-0 text-fg-faint"></span>
+      <div class="min-w-0 flex-1 text-sm text-fg-faint">
         {summarizeTools(allToolNames)}
       </div>
     </div>
   {/if}
   {#if content}
     <div class="flex items-start gap-3">
-      <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
-      <div class="min-w-0 flex-1 text-sm text-zinc-300">
+      <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-fg-faint"></span>
+      <div class="min-w-0 flex-1 text-sm text-fg-secondary">
         <Markdown {content} />
       </div>
     </div>

@@ -22,7 +22,7 @@
     modified: 'text-yellow-400',
     added: 'text-green-400',
     deleted: 'text-red-400',
-    untracked: 'text-zinc-500',
+    untracked: 'text-fg-muted',
     renamed: 'text-blue-400'
   };
 
@@ -42,7 +42,7 @@
     {#each files as file}
       <div class="list-item">
         <span class={['w-3 shrink-0', statusColor[file.status]]}>{statusLabel[file.status]}</span>
-        <span class="min-w-0 flex-1 truncate text-zinc-300" title={file.path}>{file.path}</span>
+        <span class="min-w-0 flex-1 truncate text-fg-secondary" title={file.path}>{file.path}</span>
         {#if file.additions > 0 || file.deletions > 0}
           <span class="shrink-0 text-green-400">+{file.additions}</span>
           <span class="shrink-0 text-red-400">-{file.deletions}</span>
@@ -54,23 +54,23 @@
 
 <div class="flex h-full flex-col">
   <!-- Toggle buttons -->
-  <div class="flex gap-1 border-b border-zinc-800 p-3">
+  <div class="flex gap-1 border-b border-edge p-3">
     <button
       onclick={() => (view = 'status')}
-      class={['tab-btn', view === 'status' && 'bg-zinc-700 text-zinc-100']}
+      class={['tab-btn', view === 'status' && 'bg-surface-hover text-fg']}
     >
-      Status{#if totalStatusCount > 0}<span class="ml-1 text-zinc-400">({totalStatusCount})</span
+      Status{#if totalStatusCount > 0}<span class="ml-1 text-fg-muted">({totalStatusCount})</span
         >{/if}
     </button>
     <button
       onclick={() => (view = 'commits')}
-      class={['tab-btn', view === 'commits' && 'bg-zinc-700 text-zinc-100']}
+      class={['tab-btn', view === 'commits' && 'bg-surface-hover text-fg']}
     >
       Commits ({commits.length})
     </button>
     <button
       onclick={() => (view = 'diff')}
-      class={['tab-btn', view === 'diff' && 'bg-zinc-700 text-zinc-100']}
+      class={['tab-btn', view === 'diff' && 'bg-surface-hover text-fg']}
     >
       Diff
     </button>
@@ -102,8 +102,8 @@
         <div class="space-y-3">
           {#each commits as commit (commit.hash)}
             <div class="card px-3 py-2">
-              <p class="text-sm text-zinc-200">{commit.message}</p>
-              <div class="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+              <p class="text-sm text-fg-secondary">{commit.message}</p>
+              <div class="mt-1 flex items-center gap-2 text-xs text-fg-muted">
                 <span class="font-mono">{commit.hash.slice(0, 7)}</span>
                 <span>&middot;</span>
                 <span>{commit.author}</span>

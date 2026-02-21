@@ -751,7 +751,7 @@
           scrollToBottom();
         }}
         class="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded border
-					   border-zinc-700 bg-zinc-900/90 px-3 py-1 text-xs text-zinc-400
+					   border-edge-muted bg-surface-alt/90 px-3 py-1 text-xs text-fg-muted
 					   backdrop-blur-sm transition-colors hover:border-pink-500
 					   hover:text-pink-400"
       >
@@ -762,7 +762,7 @@
 
   <!-- Error -->
   {#if errorMessage}
-    <div class="border-t border-red-900/50 px-3 py-2 text-xs text-red-400">
+    <div class="border-t border-error-border px-3 py-2 text-xs text-red-400">
       <span class="text-red-600">[error]</span>
       {errorMessage}
       <button onclick={() => (errorMessage = '')} class="ml-2 text-red-600 hover:text-red-400"

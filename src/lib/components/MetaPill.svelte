@@ -21,7 +21,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="my-1 cursor-pointer rounded bg-zinc-800/60 px-2 py-0.5 text-xs text-zinc-500"
+  class="my-1 cursor-pointer rounded bg-surface-raised/60 px-2 py-0.5 text-xs text-fg-muted"
   class:truncate={truncate && !expanded}
   onclick={ontoggle}
 >

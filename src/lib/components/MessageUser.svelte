@@ -38,7 +38,7 @@
           <div class="section-label">
             {q.header}
           </div>
-          <div class="mb-3 text-sm text-zinc-200">{q.question}</div>
+          <div class="mb-3 text-sm text-fg-secondary">{q.question}</div>
           <div class="flex flex-wrap gap-2">
             {#each q.options as option}
               <OptionButton
@@ -71,7 +71,7 @@
               <a
                 href={src}
                 target="_blank"
-                class="block h-20 w-20 overflow-hidden rounded border border-zinc-700 transition-colors hover:border-pink-500"
+                class="block h-20 w-20 overflow-hidden rounded border border-edge-muted transition-colors hover:border-pink-500"
               >
                 <img {src} alt={att.filename} class="h-full w-full object-cover" />
               </a>

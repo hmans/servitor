@@ -17,8 +17,8 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="flex h-screen bg-zinc-950 text-zinc-100">
-  <div class="shrink-0 border-r border-zinc-800" style:width="{sidebarWidth}px">
+<div class="flex h-screen bg-surface text-fg">
+  <div class="shrink-0 border-r border-edge" style:width="{sidebarWidth}px">
     <Sidebar workspaces={data.workspaces} projectName={data.projectName} />
   </div>
 
