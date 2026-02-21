@@ -6,7 +6,6 @@
   import Markdown from '$lib/components/Markdown.svelte';
   import ServitorBit from '$lib/components/ServitorBit.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
-  import MetaPill from '$lib/components/MetaPill.svelte';
   import OptionButton from '$lib/components/OptionButton.svelte';
 
   import type { AskUserQuestion, ExecutionMode } from '$lib/server/agents/types';
@@ -54,11 +53,6 @@
     });
   }
   let eventSource: EventSource | null = null;
-  let expandedMeta: Record<string, boolean> = $state({});
-
-  function toggleMeta(key: string) {
-    expandedMeta[key] = !expandedMeta[key];
-  }
 
   // Typewriter: progressively reveal streamed text word by word
   function createTypewriter(pulseBit = true) {
@@ -241,29 +235,6 @@
     return -1;
   });
 
-  type GroupedPart =
-    | { type: 'text'; text: string }
-    | { type: 'tool_use'; tool: string; toolUseId: string; input: string }
-    | { type: 'tool_group'; tools: Array<{ tool: string; toolUseId: string; input: string }> };
-
-  /** Group consecutive tool_use parts into summaries for non-verbose rendering */
-  function groupMessageParts(parts: MessagePart[], isVerbose: boolean): GroupedPart[] {
-    if (isVerbose) return parts as GroupedPart[];
-    const groups: GroupedPart[] = [];
-    for (const part of parts) {
-      if (part.type === 'text') {
-        groups.push(part);
-      } else {
-        const last = groups[groups.length - 1];
-        if (last?.type === 'tool_group') {
-          last.tools.push(part);
-        } else {
-          groups.push({ type: 'tool_group', tools: [{ ...part }] });
-        }
-      }
-    }
-    return groups;
-  }
 
   // SSE lifecycle
   $effect(() => {
@@ -1029,10 +1000,10 @@
         {:else}
           <div class="space-y-6 leading-[1.8]">
             {#each localMessages as msg, i (i)}
-              <div class="group">
-                {#if msg.role === 'user' && msg.askUserAnswers}
-                  <!-- Persisted answer with rich UI -->
-                  <div class="card p-4">
+              {#if msg.role === 'user' && msg.askUserAnswers}
+                <div class="flex items-start gap-3">
+                  <span class="icon-[uil--question-circle] mt-1 shrink-0 text-pink-400/70"></span>
+                  <div class="card flex-1 p-4">
                     {#each msg.askUserAnswers.questions as q}
                       <div class="mb-4 last:mb-0">
                         <div class="section-label">
@@ -1043,12 +1014,13 @@
                       </div>
                     {/each}
                   </div>
-                {:else if msg.role === 'user'}
-                  <div>
+                </div>
+              {:else if msg.role === 'user'}
+                <div class="flex items-start gap-3">
+                  <span class="icon-[uil--arrow-right] mt-0.5 shrink-0 text-pink-400/70"></span>
+                  <div class="min-w-0 flex-1">
                     {#if msg.content}
-                      <div
-                        class="inline-block rounded bg-pink-500/50 px-2 py-0.5 text-sm whitespace-pre-wrap text-white"
-                      >
+                      <div class="text-sm whitespace-pre-wrap text-pink-300">
                         {@html linkifyUrls(msg.content)}
                       </div>
                     {/if}
@@ -1071,115 +1043,91 @@
                       </div>
                     {/if}
                   </div>
-                {:else}
-                  {#if msg.thinking && verbose}
-                    <MetaPill
-                      icon="icon-[uil--brain]"
-                      label={expandedMeta[`${i}-thinking`] ? 'Thinking' : 'Thinking...'}
-                      expanded={expandedMeta[`${i}-thinking`]}
-                      ontoggle={() => toggleMeta(`${i}-thinking`)}
-                      truncate={false}
-                    >
+                </div>
+              {:else}
+                {#if msg.thinking && verbose}
+                  <div class="flex items-start gap-3">
+                    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-zinc-600"></span>
+                    <div class="min-w-0 flex-1 text-sm text-zinc-500">
                       <Markdown content={msg.thinking} />
-                    </MetaPill>
-                  {/if}
-                  {#if msg.parts?.length}
-                    <!-- Interleaved rendering using ordered parts -->
-                    {#each groupMessageParts(msg.parts, verbose) as group, gi}
-                      {#if group.type === 'text'}
-                        <div class="text-sm text-zinc-300">
-                          <Markdown content={group.text} />
+                    </div>
+                  </div>
+                {/if}
+                {#if msg.parts?.length}
+                  {#each msg.parts as part}
+                    {#if part.type === 'text'}
+                      <div class="flex items-start gap-3">
+                        <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
+                        <div class="min-w-0 flex-1 text-sm text-zinc-300">
+                          <Markdown content={part.text} />
                         </div>
-                      {:else if group.type === 'tool_use'}
-                        <MetaPill
-                          icon={toolIcon(group.tool)}
-                          label={humanizeToolUse(group.tool, group.input)}
-                          expanded={expandedMeta[`${i}-tool-${gi}`]}
-                          ontoggle={() => toggleMeta(`${i}-tool-${gi}`)}
-                        />
-                      {:else if group.type === 'tool_group'}
-                        <div class="mb-1 text-xs text-zinc-600">
-                          <span class="text-zinc-600">[tools]</span>
-                          {Object.entries(
-                            group.tools.reduce(
-                              (acc: Record<string, number>, t) => {
-                                acc[t.tool] = (acc[t.tool] || 0) + 1;
-                                return acc;
-                              },
-                              {} as Record<string, number>
-                            )
-                          )
-                            .map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
-                            .join(', ')}
+                      </div>
+                    {:else if part.type === 'tool_use'}
+                      <div class="flex items-start gap-3">
+                        <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+                        <div class="min-w-0 flex-1 text-sm text-zinc-500">
+                          {humanizeToolUse(part.tool, part.input)}
                         </div>
-                      {/if}
-                    {/each}
-                  {:else}
-                    <!-- Fallback: old unordered rendering for pre-parts messages -->
-                    {#if msg.toolInvocations?.length}
-                      {#if verbose}
-                        {#each msg.toolInvocations as tool, ti}
-                          <MetaPill
-                            icon={toolIcon(tool.tool)}
-                            label={humanizeToolUse(tool.tool, tool.input)}
-                            expanded={expandedMeta[`${i}-tool-${ti}`]}
-                            ontoggle={() => toggleMeta(`${i}-tool-${ti}`)}
-                          />
-                        {/each}
-                      {:else}
-                        <div class="mb-1 text-xs text-zinc-600">
-                          <span class="text-zinc-600">[tools]</span>
-                          {Object.entries(
-                            msg.toolInvocations.reduce((acc: Record<string, number>, t) => {
-                              acc[t.tool] = (acc[t.tool] || 0) + 1;
-                              return acc;
-                            }, {})
-                          )
-                            .map(([tool, n]) => (n > 1 ? tool + ' x' + n : tool))
-                            .join(', ')}
-                        </div>
-                      {/if}
+                      </div>
                     {/if}
-                    <div class="text-sm text-zinc-300">
-                      <Markdown content={msg.content} />
+                  {/each}
+                {:else}
+                  {#if msg.toolInvocations?.length}
+                    {#each msg.toolInvocations as tool}
+                      <div class="flex items-start gap-3">
+                        <span class={[toolIcon(tool.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+                        <div class="min-w-0 flex-1 text-sm text-zinc-500">
+                          {humanizeToolUse(tool.tool, tool.input)}
+                        </div>
+                      </div>
+                    {/each}
+                  {/if}
+                  {#if msg.content}
+                    <div class="flex items-start gap-3">
+                      <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
+                      <div class="min-w-0 flex-1 text-sm text-zinc-300">
+                        <Markdown content={msg.content} />
+                      </div>
                     </div>
                   {/if}
                 {/if}
-              </div>
+              {/if}
             {/each}
 
             <!-- Streaming content -->
             {#if streamingParts.length > 0}
               <div class="space-y-3">
                 {#if thinkingTypewriter.revealed && verbose}
-                  <MetaPill
-                    icon="icon-[uil--brain]"
-                    label={expandedMeta['streaming-thinking'] ? 'Thinking' : 'Thinking...'}
-                    expanded={expandedMeta['streaming-thinking']}
-                    ontoggle={() => toggleMeta('streaming-thinking')}
-                    truncate={false}
-                  >
-                    <Markdown content={thinkingTypewriter.revealed} />
-                  </MetaPill>
+                  <div class="flex items-start gap-3">
+                    <span class="icon-[uil--brain] mt-0.5 shrink-0 text-zinc-600"></span>
+                    <div class="min-w-0 flex-1 text-sm text-zinc-500">
+                      <Markdown content={thinkingTypewriter.revealed} />
+                    </div>
+                  </div>
                 {/if}
                 {#each streamingParts as part, i (i)}
                   {#if part.type === 'text'}
                     {@const isLast = i === lastStreamingTextIndex}
                     {@const text = isLast ? textTypewriter.revealed : part.text}
                     {#if text}
-                      <div class="text-sm text-zinc-300">
-                        <Markdown content={text} />
+                      <div class="flex items-start gap-3">
+                        <span class="icon-[uil--comment-alt] mt-0.5 shrink-0 text-zinc-600"></span>
+                        <div class="min-w-0 flex-1 text-sm text-zinc-300">
+                          <Markdown content={text} />
+                        </div>
                       </div>
                     {/if}
-                  {:else if part.type === 'tool_use' && verbose}
-                    <MetaPill
-                      icon={toolIcon(part.tool)}
-                      label={humanizeToolUse(part.tool, part.input)}
-                      expanded={expandedMeta[`streaming-tool-${i}`]}
-                      ontoggle={() => toggleMeta(`streaming-tool-${i}`)}
-                    />
+                  {:else if part.type === 'tool_use'}
+                    <div class="flex items-start gap-3">
+                      <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+                      <div class="min-w-0 flex-1 text-sm text-zinc-500">
+                        {humanizeToolUse(part.tool, part.input)}
+                      </div>
+                    </div>
                   {:else if part.type === 'enter_plan'}
-                    <div class="card my-3 border-amber-700/50 bg-amber-500/5 p-4">
+                    <div class="flex items-start gap-3">
+                    <span class="icon-[uil--map] mt-1 shrink-0 text-amber-600"></span>
+                    <div class="card my-3 flex-1 border-amber-700/50 bg-amber-500/5 p-4">
                       <div class="section-label text-amber-600">Enter Plan Mode</div>
                       <div class="mb-3 text-sm text-zinc-300">
                         The agent wants to plan before implementing. Switch to plan mode?
@@ -1201,8 +1149,11 @@
                         </div>
                       {/if}
                     </div>
+                    </div>
                   {:else if part.type === 'ask_user'}
-                    <div class="card my-3 p-4">
+                    <div class="flex items-start gap-3">
+                    <span class="icon-[uil--question-circle] mt-1 shrink-0 text-pink-400/70"></span>
+                    <div class="card my-3 flex-1 p-4">
                       {#each part.questions as q}
                         <div class="mb-4 last:mb-0">
                           <div class="section-label">
@@ -1260,8 +1211,11 @@
                         </div>
                       {/if}
                     </div>
+                    </div>
                   {:else if part.type === 'exit_plan'}
-                    <div class="card my-3 p-4">
+                    <div class="flex items-start gap-3">
+                    <span class="icon-[uil--file-check-alt] mt-1 shrink-0 text-amber-600"></span>
+                    <div class="card my-3 flex-1 p-4">
                       <div class="section-label flex items-center gap-3 text-amber-600">
                         <span>Plan Approval</span>
                         {#if part.planFilePath}
@@ -1307,6 +1261,7 @@
                           </button>
                         </div>
                       {/if}
+                    </div>
                     </div>
                   {/if}
                 {/each}
