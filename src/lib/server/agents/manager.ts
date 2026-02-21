@@ -99,6 +99,34 @@ function getOrCreate(conversationId: string): ActiveConversation {
   return conv;
 }
 
+/**
+ * Persist any accumulated turn content (text, tools, thinking) via onComplete,
+ * then reset the turn state. Used when a turn ends normally, is interrupted by
+ * a blocking tool, or the process is killed.
+ */
+function flushTurn(conv: ActiveConversation, opts?: { textOverride?: string }): void {
+  if (!conv.onComplete) return;
+  if (!conv.turnText && conv.toolInvocations.length === 0 && !conv.turnThinking) return;
+
+  const allText = conv.turnParts
+    .filter((p): p is MessagePart & { type: 'text' } => p.type === 'text')
+    .map((p) => p.text)
+    .join('\n\n');
+
+  conv.onComplete(
+    opts?.textOverride || allText || conv.turnText,
+    conv.lastSessionId,
+    conv.toolInvocations,
+    conv.turnThinking,
+    [...conv.turnParts]
+  );
+
+  conv.toolInvocations = [];
+  conv.turnParts = [];
+  conv.turnText = '';
+  conv.turnThinking = '';
+}
+
 export function subscribe(conversationId: string, listener: Listener): () => void {
   const conv = getOrCreate(conversationId);
   conv.listeners.add(listener);
@@ -208,27 +236,12 @@ export function sendMessage(
     if (event.type === 'enter_plan' || event.type === 'ask_user' || event.type === 'exit_plan') {
       conv.lastSessionId = event.sessionId;
 
-      // Snapshot tool invocations before persisting (which resets the array)
+      // Snapshot tool invocations before flushing (which resets the array)
       const turnToolInvocations = [...conv.toolInvocations];
 
       // Persist partial assistant message if there's accumulated content
-      if ((conv.turnText || conv.toolInvocations.length > 0) && conv.onComplete) {
-        const allText = conv.turnParts
-          .filter((p): p is MessagePart & { type: 'text' } => p.type === 'text')
-          .map((p) => p.text)
-          .join('\n\n');
-        conv.onComplete(
-          allText || conv.turnText,
-          event.sessionId,
-          conv.toolInvocations,
-          conv.turnThinking,
-          [...conv.turnParts]
-        );
-        conv.toolInvocations = [];
-        conv.turnParts = [];
-        conv.turnText = '';
-        conv.turnThinking = '';
-      }
+      conv.lastSessionId = event.sessionId;
+      flushTurn(conv);
 
       // Persist the pending interaction so it survives page reloads
       if (event.type === 'enter_plan') {
@@ -295,25 +308,8 @@ export function sendMessage(
       conv.busy = false;
       broadcastStatus(conversationId, false);
       conv.lastSessionId = event.sessionId || conv.lastSessionId;
-      if (conv.onComplete) {
-        // The result event's text field may be empty — fall back to accumulated turnParts/turnText
-        const allText = conv.turnParts
-          .filter((p): p is MessagePart & { type: 'text' } => p.type === 'text')
-          .map((p) => p.text)
-          .join('\n\n');
-        const finalText = event.text || allText || conv.turnText;
-        conv.onComplete(
-          finalText,
-          event.sessionId,
-          conv.toolInvocations,
-          conv.turnThinking,
-          [...conv.turnParts]
-        );
-        conv.toolInvocations = [];
-        conv.turnParts = [];
-        conv.turnText = '';
-        conv.turnThinking = '';
-      }
+      // The result event's text field may be empty — textOverride falls back inside flushTurn
+      flushTurn(conv, { textOverride: event.text || undefined });
     }
 
     if (event.type === 'done') {
@@ -351,6 +347,9 @@ export function debugState(): Array<{
 export function killProcess(conversationId: string): void {
   const conv = active.get(conversationId);
   if (conv?.process) {
+    // Persist any in-flight assistant content before killing
+    flushTurn(conv);
+    conv.busy = false;
     conv.process.kill();
     conv.process = null;
     broadcastStatus(conversationId, false);

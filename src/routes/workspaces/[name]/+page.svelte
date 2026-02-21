@@ -610,7 +610,14 @@
             {#each localMessages as msg (msg.ts)}
               {#if msg.role === 'system'}
                 <div class="flex items-start gap-3">
-                  <span class="icon-[uil--square-full] mt-0.5 shrink-0 text-fg-faint"></span>
+                  <span
+                    class={[
+                      'mt-0.5 shrink-0 text-fg-faint',
+                      msg.content === 'Stopped by user'
+                        ? 'icon-[mdi--stop]'
+                        : 'icon-[uil--square-full]'
+                    ]}
+                  ></span>
                   <span class="text-sm text-fg-faint">{msg.content}</span>
                 </div>
               {:else if msg.role === 'user'}
