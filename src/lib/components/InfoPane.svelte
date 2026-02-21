@@ -40,7 +40,7 @@
 {#snippet fileList(files: FileStatus[])}
   <div class="space-y-0.5 font-mono text-xs">
     {#each files as file}
-      <div class="list-item">
+      <div class="flex items-center gap-2">
         <span class={['w-3 shrink-0', statusColor[file.status]]}>{statusLabel[file.status]}</span>
         <span class="min-w-0 flex-1 truncate text-fg-secondary" title={file.path}>{file.path}</span>
         {#if file.additions > 0 || file.deletions > 0}
