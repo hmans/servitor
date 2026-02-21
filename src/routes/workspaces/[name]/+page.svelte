@@ -671,6 +671,13 @@
     sending = false;
     streamingParts = [];
     activity.setBusy(false);
+
+    // Optimistically show the stop message (server persists it too)
+    localMessages = [
+      ...localMessages,
+      { role: 'system', content: 'Stopped by user', ts: new Date().toISOString() }
+    ];
+
     await invalidateAll();
   }
 
@@ -707,7 +714,12 @@
         {:else}
           <div class="space-y-6 leading-[1.8]">
             {#each localMessages as msg, i (i)}
-              {#if msg.role === 'user'}
+              {#if msg.role === 'system'}
+                <div class="flex items-start gap-3">
+                  <span class="icon-[uil--square-full] mt-0.5 shrink-0 text-fg-faint"></span>
+                  <span class="text-sm text-fg-faint">{msg.content}</span>
+                </div>
+              {:else if msg.role === 'user'}
                 <MessageUser
                   content={msg.content}
                   attachments={msg.attachments}
@@ -784,7 +796,7 @@
   <!-- Input -->
   <Composer
     {executionMode}
-    {processAlive}
+    active={processAlive || sending}
     onsend={sendMessage}
     onstop={stopProcess}
     bind:composerEl

@@ -110,9 +110,11 @@ The `result` event that signals end-of-turn may have an empty/falsy `result` tex
 - Status dot in workspace header: green when agent is busy, gray when idle
 - User messages rendered as inline pink badges
 - Assistant messages rendered via the `Markdown` component with `leading-[1.8]` line height
+- System messages (e.g. "Stopped by user") rendered with `text-fg-faint` and a contextual icon
 - Tool invocations: in verbose mode, each tool call is shown individually; in non-verbose mode, persisted messages show a `Read x4, Bash x2` summary and streaming shows only the latest tool call with a `+N more` badge
 - Streaming text is revealed word-by-word via a client-side typewriter effect (20ms per word)
 - Resizable panes via `PaneResizer` component
+- **When adding new UI elements, always match the existing patterns.** All message types use the same layout structure (`flex items-start gap-3`, icon with `mt-0.5 shrink-0`, content in `text-sm`). Never use a different font size, gap, or alignment — copy the pattern from `MessageUser.svelte` or adjacent message types in `+page.svelte`.
 
 ## Testing
 

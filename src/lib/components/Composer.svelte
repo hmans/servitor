@@ -6,13 +6,13 @@
 
   let {
     executionMode,
-    processAlive,
+    active,
     onsend,
     onstop,
     composerEl = $bindable()
   }: {
     executionMode: ExecutionMode;
-    processAlive: boolean;
+    active: boolean;
     onsend: (
       content: string,
       attachments?: Array<{ filename: string; mediaType: string; data: string }>
@@ -138,7 +138,7 @@
       e.preventDefault();
       send();
     }
-    if (e.key === 'Escape' && processAlive) {
+    if (e.key === 'Escape' && active) {
       e.preventDefault();
       onstop();
     }
@@ -210,7 +210,7 @@
     >
       <span class="icon-[uil--image-plus]"></span>
     </button>
-    {#if processAlive}
+    {#if active}
       <button
         onclick={onstop}
         class="cursor-pointer text-red-600 transition-colors hover:text-red-400"
