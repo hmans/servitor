@@ -142,6 +142,15 @@
 
     oncustomanswer(toolUseId, content);
   }
+
+  // For non-verbose streaming: find the last tool_use part and count prior ones
+  const toolUseParts = $derived(
+    streamingParts
+      .map((p, i) => ({ part: p, index: i }))
+      .filter((x) => x.part.type === 'tool_use')
+  );
+  const lastToolUse = $derived(toolUseParts.length > 0 ? toolUseParts[toolUseParts.length - 1] : null);
+  const priorToolCount = $derived(toolUseParts.length > 1 ? toolUseParts.length - 1 : 0);
 </script>
 
 <div class="space-y-3">
@@ -166,12 +175,24 @@
         </div>
       {/if}
     {:else if part.type === 'tool_use'}
-      <div class="flex items-start gap-3">
-        <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
-        <div class="min-w-0 flex-1 text-sm text-zinc-500">
-          {humanizeToolUse(part.tool, part.input)}
+      {#if verbose}
+        <div class="flex items-start gap-3">
+          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+            {humanizeToolUse(part.tool, part.input)}
+          </div>
         </div>
-      </div>
+      {:else if lastToolUse && i === lastToolUse.index}
+        <div class="flex items-start gap-3">
+          <span class={[toolIcon(part.tool), 'mt-0.5 shrink-0 text-zinc-600']}></span>
+          <div class="min-w-0 flex-1 text-sm text-zinc-500">
+            {humanizeToolUse(part.tool, part.input)}
+            {#if priorToolCount > 0}
+              <span class="ml-2 text-zinc-700">+{priorToolCount} more</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
     {:else if part.type === 'enter_plan'}
       <div class="flex items-start gap-3">
         <span class="icon-[uil--map] mt-1 shrink-0 text-amber-600"></span>

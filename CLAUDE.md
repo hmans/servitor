@@ -100,8 +100,7 @@ The `result` event that signals end-of-turn may have an empty/falsy `result` tex
 - Status dot in workspace header: green when agent is busy, gray when idle
 - User messages rendered as inline pink badges
 - Assistant messages rendered via the `Markdown` component with `leading-[1.8]` line height
-- Tool invocations shown as a collapsible `[tools] Read x4, Bash x2` summary above the assistant message text
-- During streaming, only the latest tool call is shown with a `+N more` badge
+- Tool invocations: in verbose mode, each tool call is shown individually; in non-verbose mode, persisted messages show a `Read x4, Bash x2` summary and streaming shows only the latest tool call with a `+N more` badge
 - Streaming text is revealed word-by-word via a client-side typewriter effect (20ms per word)
 - Resizable panes via `PaneResizer` component
 
