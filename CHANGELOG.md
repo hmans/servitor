@@ -1,5 +1,18 @@
 # @hmans/servitor
 
+## 0.4.0
+
+### Minor Changes
+
+- 6c2266b: Add display labels to workspaces and redirect landing page to main workspace
+
+### Patch Changes
+
+- 75cfe49: Update CLAUDE.md changeset instructions to create files directly instead of using interactive CLI
+- 9053c94: Extract WorkspaceHeader, MessageUser, MessageAssistant, StreamingMessage, and Composer components from the workspace chat page
+- 4dcb094: Replace MetaPill component with plain message rendering and UIL icons for each message type
+- 11317d0: Refresh InfoPane data when the browser tab regains focus
+
 ## 0.3.1
 
 ### Patch Changes
