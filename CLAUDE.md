@@ -6,7 +6,7 @@
 - SvelteKit full-stack web application.
 - Works with a single git repository — the one Servitor is launched from.
 - Designed to be run locally, but also on a remote VM (with the repository on that VM).
-- Integrates with GitHub for pull requests, issues, and project management.
+- Does not depend on or even integrate with any code forge (GitHub, GitLab, etc.) — it operates directly on the git repository and worktrees.
 - Must be launched from within a git repository.
 
 ## Tech Stack
@@ -18,6 +18,7 @@
 - **Package manager:** pnpm (always use `pnpm`, never `npm` or `npx`)
 - **Testing:** Vitest (unit), Playwright (E2E); run `mise test` or `pnpm vitest run --project server`
 - **Changesets:** Every commit **must** include a changeset. Since `pnpm changeset` is interactive and won't work in non-TTY environments, create the changeset file directly in `.changeset/` with a kebab-case name and the following format:
+
   ```md
   ---
   '@hmans/servitor': patch
@@ -25,6 +26,7 @@
 
   Short description of the change
   ```
+
   Use `patch` for fixes, `minor` for features, `major` for breaking changes.
 
 ## Configuration
@@ -32,8 +34,8 @@
 - Config is loaded at startup from CWD (`git rev-parse --show-toplevel`) and optional `.servitor.yml` in repo root
 - `.servitor.yml` format:
   ```yaml
-  name: My Project          # optional, defaults to basename of repo
-  worktreesDir: ~/worktrees  # optional, defaults to ~/servitor-worktrees
+  name: My Project # optional, defaults to basename of repo
+  worktreesDir: ~/worktrees # optional, defaults to ~/servitor-worktrees
   ```
 - Config singleton: `src/lib/server/config.ts` exports `config` with `repoPath`, `projectName`, `projectSlug`, `worktreesDir`
 
